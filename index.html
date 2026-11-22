@@ -1511,8 +1511,8 @@ function applyAbilities(b) {
         if (e.kind === 'sq') e.hp = Math.max(0, e.hp - A.fx.strike - passives(gu.g).sdmg);
         else if (A.fx.gstrike) e.hp = Math.max(1, e.hp - A.fx.gstrike);
       }
-      evs.push({ caster: gu, k, before });
-    } else evs.push({ caster: gu, k, before, buff: true });
+      evs.push({ caster: gu, k, before, after: new Map(b.units.map(u => [u.uid, u.hp])) });
+    } else evs.push({ caster: gu, k, before, after: new Map(b.units.map(u => [u.uid, u.hp])), buff: true });
   }
   return evs;
 }
@@ -1780,7 +1780,7 @@ async function playBattle(scenes) {
   const evs = applyAbilities(b); checkEnd(b);
   for (const e of evs) if (!SKIP.round) {
     $('#sround').textContent = `${e.caster.g.name.split(' ')[0]} unleashes ${ABIL[e.k].n}`;
-    await playScene(buildScene(b, { skill: true, caster: e.caster, k: e.k, before: e.before }, [{ side: lr(e.caster.side), text: `${ABIL[e.k].i} ${ABIL[e.k].n}!` }]));
+    await playScene(buildScene(b, { skill: true, caster: e.caster, k: e.k, before: e.before, after: e.after }, [{ side: lr(e.caster.side), text: `${ABIL[e.k].i} ${ABIL[e.k].n}!` }]));
   }
   while (!b.over) {
     for (const [x, y] of pairings(b)) {
@@ -1890,6 +1890,7 @@ function buildScene(b, info, banners) {
   const leftSide = b.player === 1 ? 1 : 0;
   const S = { soldiers: [], proj: [], parts: [], rings: [], pops: [], dust: [], booms: [], trail: [], banners: banners || [], b, hs: 0, slow: 0, shake: 0, flashA: 0 };
   const hpBefore = u => info.before.get(u.uid) ?? u.hp;
+  const hpAfter = u => info.after ? (info.after.get(u.uid) ?? u.hp) : u.hp; // this ability's result, not later ones'
   let gL, gR, uL, uR;
   if (info.skill) {
     const c = info.caster, enemies = genUnits(b, 1 - c.side).concat(b.units.filter(u => u.kind === 'gen' && u.side !== c.side && u.hp <= 0 && (info.before.get(u.uid) || 0) > 0));
@@ -1920,16 +1921,16 @@ function buildScene(b, info, banners) {
   for (const [arr, units, sd] of [[L, uL, 0], [Rr, uR, 1]]) {
     for (const u of units) {
       if (u.kind === 'gen') continue;
-      const hb = hpBefore(u); S.troops0[sd] += hb; S.lost[sd] += hb - Math.max(0, u.hp);
-      if (u.routed && u.hp <= 0) continue;
-      const mine = arr.filter(s => s.u === u), k = Math.max(0, dispN(hb) - dispN(u.hp));
+      const hb = hpBefore(u); S.troops0[sd] += hb; S.lost[sd] += hb - Math.max(0, hpAfter(u));
+      if (u.routed && hpAfter(u) <= 0) continue;
+      const mine = arr.filter(s => s.u === u), k = Math.max(0, dispN(hb) - dispN(hpAfter(u)));
       mine.sort(() => R() - 0.5).slice(0, k).forEach(so => {
         const d = { so, t: t0 + R() * (t1 - t0), sd }; S.deaths.push(d); S.planned[sd]++;
         const sh = shooters.get(u.uid); if (sh && R() < 0.7) { const from = pick(S.byU.get(pick(sh).uid) || []); if (from) { d.t = 0.9 + R() * (t1 - 0.9); d.shot = true; S.proj.push({ from, to: so, t0: d.t - 0.5, t1: d.t, kind: projKind(from.type) }); } }
       });
     }
     const g = sd ? gR : gL;
-    if (hpBefore(g) > 0 && g.hp <= 0) {
+    if (hpBefore(g) > 0 && hpAfter(g) <= 0) {
       S.genFall = S.genFall || [];
       if (S.mode === 'skill') { S.deaths.push({ so: arr[0], t: t1 + 0.1, sd, gen: true }); S.genFall.push({ sd, t: t1 + 0.1, g }); }
       else S.genFall.push({ sd, t: Infinity, g }); // the duel decides when the blow lands
@@ -1944,7 +1945,7 @@ function buildScene(b, info, banners) {
     const pass = x => S.dash.t0 + Math.abs(x - S.dash.x0) / S.dash.v + 0.02;
     const dying = new Set(S.deaths.map(d => d.so));
     for (const d of S.deaths) d.t = pass(d.so.hx);
-    for (const f of foes) if (!f.gen && !dying.has(f) && (info.before.get(f.u.uid) || 0) > Math.max(0, f.u.hp)) S.hits.push({ so: f, t: pass(f.hx) });
+    for (const f of foes) if (!f.gen && !dying.has(f) && (info.before.get(f.u.uid) || 0) > Math.max(0, hpAfter(f.u))) S.hits.push({ so: f, t: pass(f.hx) });
     S.end = S.dash.tHome + 1.0;
   } else if (S.mode === 'skill' && S.sk) {
     // projectiles to victims
@@ -1960,9 +1961,11 @@ function buildScene(b, info, banners) {
     for (const so of S.soldiers) if (so.ranged && !so.gen) so.nextShot = 0.45 + so.off * 0.8;
   }
   S.deaths.sort((a, c) => a.t - c.t);
-  S.genHp = [[hpBefore(gL), Math.max(0, gL.hp)], [hpBefore(gR), Math.max(0, gR.hp)]];
+  S.genHp = [[hpBefore(gL), Math.max(0, hpAfter(gL))], [hpBefore(gR), Math.max(0, hpAfter(gR))]];
+  // a General struck by the spell is hit visibly at 1.3s, and their HP drops at that moment
+  if (S.mode === 'skill') for (const sd of [0, 1]) if (S.genHp[sd][1] < S.genHp[sd][0]) { const gs = (sd ? Rr : L)[0]; S.gHitT = 1.3; if (S.sk === 'meteor' || S.sk === 'lightning') S.booms.push({ x: gs.hx, y: gs.hy, t: 1.3, big: true, bolt: S.sk === 'lightning' }); }
   S.gShow = [S.genHp[0][0], S.genHp[1][0]];
-  if (S.mode === 'skill') S.healPops = (S.casterSide ? uR : uL).filter(u => u.kind === 'sq' && u.hp > hpBefore(u)).map((u, i) => ({ u, n: u.hp - hpBefore(u), t: 1.0 + i * 0.12 }));
+  if (S.mode === 'skill') S.healPops = (S.casterSide ? uR : uL).filter(u => u.kind === 'sq' && hpAfter(u) > hpBefore(u)).map((u, i) => ({ u, n: hpAfter(u) - hpBefore(u), t: 1.0 + i * 0.12 }));
   S.bg = sceneBg(b.biome, b.siege, b.player === 1);
   return S;
 }
@@ -2344,7 +2347,7 @@ function drawScene(cx, S, t, dt) {
     const g = sd ? S.gR : S.gL, pal = G.pals[g.g.faction], gh = S.genHp && S.genHp[sd];
     let troops, ghp;
     if (S.live) { troops = liveTroops(S, sd); ghp = Math.max(0, S.duel.gs[sd].hp); }
-    else { const prog = S.planned[sd] ? S.done[sd] / S.planned[sd] : (t > S.end - 1 ? 1 : 0); troops = Math.max(0, S.troops0[sd] - Math.round(S.lost[sd] * prog)); ghp = Math.round(lerp(gh[0], gh[1], clamp((t - (S.tc || 0.9)) / 1.4, 0, 1))); }
+    else { const prog = S.planned[sd] ? S.done[sd] / S.planned[sd] : (t > S.end - 1 ? 1 : 0); troops = Math.max(0, S.troops0[sd] - Math.round(S.lost[sd] * prog)); ghp = S.mode === 'skill' ? (t >= (S.gHitT || 1.3) ? gh[1] : gh[0]) : Math.round(lerp(gh[0], gh[1], clamp((t - (S.tc || 0.9)) / 1.4, 0, 1))); }
     const key = troops + ':' + ghp; if (el._k === key) return;
     if (!el._k) {
       // built once per scene: portrait, name, then the General's HP bar stacked over the troops bar
