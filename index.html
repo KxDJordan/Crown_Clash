@@ -116,6 +116,13 @@ th{color:var(--dim);font-weight:400;font-size:15px;letter-spacing:1px;text-trans
 #sskipall{position:absolute;bottom:calc(3% + 34px);right:2%}
 #sskip{position:absolute;bottom:3%;right:2%;font-size:clamp(12px,1.5vw,16px);color:#f4eedccc;background:#1b203099;padding:3px 10px 2px}
 #sban{position:absolute;top:22%;left:0;right:0;pointer-events:none}
+#spops{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.spop{position:absolute;font-family:var(--fd);font-size:clamp(11px,1.7vw,20px);color:#e8f2ff;text-shadow:2px 2px 0 #0c0e16,-1px -1px 0 #0c0e16,1px -1px 0 #0c0e16,-1px 1px 0 #0c0e16;white-space:nowrap;animation:spop .8s ease-out forwards}
+.spop.dmg{color:#ffd24a;font-size:clamp(16px,2.8vw,34px)}.spop.par{color:#ffe27a}.spop.cnt{color:#ff9a50;font-size:clamp(12px,2vw,24px)}
+.spop.ko{color:#ff6a4a;font-size:clamp(26px,5.5vw,64px);animation:sko 1.4s ease-out forwards}
+@keyframes spop{0%{transform:translate(-50%,-50%) scale(1.8);opacity:0}15%{transform:translate(-50%,-100%) scale(1);opacity:1}70%{opacity:1}100%{transform:translate(-50%,-230%);opacity:0}}
+@keyframes sko{0%{transform:translate(-50%,-50%) scale(2.6);opacity:0}12%{transform:translate(-50%,-50%) scale(1);opacity:1}80%{opacity:1}100%{transform:translate(-50%,-70%);opacity:0}}
+.sbar.hit{animation:shit .3s}@keyframes shit{0%,60%{background:#7a2020ee;transform:translateX(3px)}30%{transform:translateX(-3px)}}
 #sban .sb{position:absolute;font-family:var(--fd);font-size:clamp(14px,2.6vw,28px);color:var(--gold);text-shadow:3px 3px 0 #0c0e16;background:#1b2030cc;border:2px solid #0c0e16;padding:6px 18px;animation:tin .3s}
 #sban .l{left:4%}#sban .r{right:4%}
 /* title */
@@ -287,7 +294,7 @@ td,th{border-color:var(--edge2)}
  <div id="tacwrap"><div id="bfield"><div class="bcol" id="colL"></div><div class="bvs">VS</div><div class="bcol" id="colR"></div></div></div>
  <div id="tacbar"><div id="tacinfo"></div><div id="tacbtns" class="row" style="margin:0"></div></div>
 </div>
-<div id="scene"><div id="scenebox"><canvas id="scenecv" width="400" height="225"></canvas>
+<div id="scene"><div id="scenebox"><canvas id="scenecv" width="432" height="243"></canvas><div id="spops"></div>
  <div class="sbar" id="sbL"></div><div class="sbar" id="sbR"></div><div id="sban"></div><div id="sround"></div><div id="sskip">Tap to skip this clash</div><button class="btn sm" id="sskipall"><i class="ico ico-right"></i> Skip battle</button></div></div>
 <div id="title"><div class="tb"><div class="crest"></div>
  <h1>CROWN <span class="amp">&amp;</span> CLASH</h1>
@@ -824,6 +831,8 @@ function drawUnit(ctx, o) {
   let row, n, fr;
   if (o.state === 'dead') { [row, n] = d.dead; fr = Math.min(n - 1, Math.floor((o.dt || 0) * 9)); }
   else if (o.hurt != null) { [row, n] = d.hurt; fr = Math.min(n - 1, Math.floor(o.hurt * 10)); }
+  else if (o.roll != null) { [row, n] = d.run; fr = Math.floor(o.roll * 16) % n; }
+  else if (o.blk != null) { row = d.idle[0]; fr = 0; }
   else if (o.state === 'atk') {
     if (o.ak != null) { [row, n] = (o.sp && d.sp) || d.atk[o.av ? 1 : 0]; fr = Math.min(n - 1, Math.floor(clamp(o.ak, 0, 1) * n)); }
     else { const a = d.atk, f = Math.floor(t * 11) % (a[0][1] + a[1][1]); if (f < a[0][1]) { row = a[0][0]; fr = f; } else { row = a[1][0]; fr = f - a[0][1]; } }
@@ -1021,8 +1030,10 @@ function drawGenUnit(ctx, o, g) {
   let row, n, fr;
   if (o.state === 'dead') { row = 13; fr = Math.min(4, Math.floor((o.dt || 0) * 9)); }
   else if (o.hurt != null) { row = 12; fr = Math.min(3, Math.floor(o.hurt * 10)); }
+  else if (o.roll != null) { row = 16; fr = Math.min(7, Math.floor(o.roll * 18)); }
+  else if (o.blk != null) { row = 15; fr = Math.min(4, 1 + Math.floor(o.blk * 12)); }
   else if (o.state === 'atk') {
-    if (o.ak != null) { [row, n] = o.sp ? [10, 5] : A[o.av ? 1 : 0]; fr = Math.min(n - 1, Math.floor(clamp(o.ak, 0, 1) * n)); }
+    if (o.ak != null) { [row, n] = o.sp ? [10, 5] : o.heavy && !mage ? [8, 6] : A[o.av ? 1 : 0]; fr = Math.min(n - 1, Math.floor(clamp(o.ak, 0, 1) * n)); }
     else if (mage) { row = 11; fr = 2 + Math.floor(t * 8) % 3; }
     else { const f = Math.floor(t * 11) % (A[0][1] + A[1][1]); if (f < A[0][1]) { row = A[0][0]; fr = f; } else { row = A[1][0]; fr = f - A[0][1]; } }
   }
@@ -1395,20 +1406,22 @@ function endManual() {
   $('#bwc').onclick = () => { $('#modal').style.display = 'none'; $('#battle').style.display = 'none'; const r = TB.res; TB = null; r(b); };
 }
 // ============ LANGRISSER-MOBILE-STYLE ARMY SCENES ============
-const SW = 320, SH = 180, HOR = 104;
+const SW = 432, SH = 243, HOR = 140, SK = SW / 320; // the scene used to be 320x180; it now shows more of the field
 const sceneBgCache = new Map();
 const BATTLE_BG = new Image(); BATTLE_BG.src = "data:image/png;base64,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";
+// castle wall and keep on the defenders' side, laid out on the old 320x180 grid and scaled to the scene
+function castleBg(cx, dy, st, sd, sl) {
+  const H = 104, P = (x, y, w, h, c) => { const X = Math.round(x * SK), Y = Math.round((y + dy) * SK); cx.fillStyle = c; cx.fillRect(X, Y, Math.round((x + w) * SK) - X, Math.round((y + dy + h) * SK) - Y); };
+  P(196, 56, 124, H - 52, st); for (let x = 196; x < 320; x += 7) P(x, 52, 4, 4, st); P(196, 56, 124, 2, sl);
+  for (let y = 62; y < H + 4; y += 6) for (let x = 196 + ((y / 6) % 2) * 6; x < 320; x += 12) { P(x, y, 1, 6, sd); P(x, y, 12, 1, sd); }
+  P(240, 34, 22, H - 30, st); P(240, 34, 3, H - 30, sl); P(259, 34, 3, H - 30, sd); for (let x = 240; x < 262; x += 5) P(x, 30, 3, 4, st); P(249, 46, 4, 8, '#2a1c12');
+  P(250, 14, 1, 18, '#4a3420'); P(251, 14, 10, 6, '#c03a2a');
+}
 function sceneBg(biome, castle) {
   if (BATTLE_BG.complete && BATTLE_BG.naturalWidth) {
     const key = 'img:' + castle; if (sceneBgCache.has(key)) return sceneBgCache.get(key);
     const [cv, cx] = mkCanvas(SW, SH); cx.drawImage(BATTLE_BG, 0, 0, SW, SH);
-    if (castle) {
-      const P = (x, y, w, h, c) => { cx.fillStyle = c; cx.fillRect(x, y + 20, w, h); }, st = '#b4b0a8', sd = '#77736c', sl = '#d6d2c8';
-      P(196, 56, 124, HOR - 52, st); for (let x = 196; x < SW; x += 7) P(x, 52, 4, 4, st); P(196, 56, 124, 2, sl);
-      for (let y = 62; y < HOR + 4; y += 6) for (let x = 196 + ((y / 6) % 2) * 6; x < SW; x += 12) { P(x, y, 1, 6, sd); P(x, y, 12, 1, sd); }
-      P(240, 34, 22, HOR - 30, st); P(240, 34, 3, HOR - 30, sl); P(259, 34, 3, HOR - 30, sd); for (let x = 240; x < 262; x += 5) P(x, 30, 3, 4, st); P(249, 46, 4, 8, '#2a1c12');
-      P(250, 14, 1, 18, '#4a3420'); P(251, 14, 10, 6, '#c03a2a');
-    }
+    if (castle) castleBg(cx, 20, '#b4b0a8', '#77736c', '#d6d2c8');
     sceneBgCache.set(key, cv); return cv;
   }
   const key = biome + ':' + castle; if (sceneBgCache.has(key)) return sceneBgCache.get(key);
@@ -1425,13 +1438,7 @@ function sceneBg(biome, castle) {
     const pal = biome === T.SNOW ? PAL_SPINE : PAL_PINE, step = biome === T.FOREST ? 5 : 9;
     for (let x = -4; x < SW; x += step) { if (biome !== T.FOREST && hash2(x, 4, s) < 0.45) continue; const y = HOR - 9 + ((hash2(x, 3, s) * 4) | 0); drawSpr(cx, SPR[biome === T.SNOW || hash2(x, 5, s) < 0.6 ? 'pine' : 'tree'], x, y, biome === T.SNOW ? pal : hash2(x, 6, s) < 0.5 ? PAL_PINE : PAL_TREE); }
   }
-  if (castle) {
-    const st = '#a49e94', sd = '#6e6860', sl = '#c8c2b6';
-    P(196, 56, 124, HOR - 52, st); for (let x = 196; x < SW; x += 7) P(x, 52, 4, 4, st); P(196, 56, 124, 2, sl);
-    for (let y = 62; y < HOR + 4; y += 6) for (let x = 196 + ((y / 6) % 2) * 6; x < SW; x += 12) { P(x, y, 1, 6, sd); P(x, y, 12, 1, sd); }
-    P(240, 34, 22, HOR - 30, st); P(240, 34, 3, HOR - 30, sl); P(259, 34, 3, HOR - 30, sd); for (let x = 240; x < 262; x += 5) P(x, 30, 3, 4, st); P(249, 46, 4, 8, '#2a1c12');
-    P(250, 14, 1, 18, '#4a3420'); P(251, 14, 10, 6, '#c03a2a');
-  }
+  if (castle) castleBg(cx, 0, '#a49e94', '#6e6860', '#c8c2b6');
   const gc = { [T.SNOW]: [[220, 230, 242], [200, 212, 230]], [T.DESERT]: [[222, 186, 112], [204, 166, 96]], [T.SAND]: [[226, 204, 146], [208, 188, 130]], [T.SWAMP]: [[86, 108, 66], [70, 90, 56]] }[biome] || [[100, 164, 70], [84, 146, 58]];
   for (let y = HOR; y < SH; y++) for (let x = 0; x < SW; x++) {
     const h = hash2(x, y, s), n = vnoise(x / 9, y / 4, s);
@@ -1444,13 +1451,13 @@ function sceneBg(biome, castle) {
   sceneBgCache.set(key, cv); return cv;
 }
 
-const LANES = [126, 148, 170], COLX = [116, 58];
-const SOFF = [[0, 0], [-11, -5], [-12, 5], [-23, -1], [-22, 8]];
+const LANES = [168, 196, 224], COLX = [158, 86];
+const SOFF = [[0, 0], [-12, -6], [-13, 6], [-25, -1], [-24, 9]];
 const dispN = hp => Math.min(5, Math.ceil(Math.max(0, hp) / 2));
 function layoutArmy(gu, units, side, hpOf) {
   const pal = G.pals[gu.g.faction] || G.pals[NEUTRAL], list = [], X = x => side ? SW - x : x;
-  const mk = (u, gen, x, y) => { const cav = u.type === 'cavalry'; list.push({ u, side, gen, type: u.type, pal, hx: X(x), hy: y, off: R(), skin: gen ? SKINS[gu.g.pseed % 5] : pick(SKINS), horse: gen ? 0 : ri(0, 2), ranged: isRanged(u), spd: (cav ? 125 : 88) * (0.85 + R() * 0.3), t0: 0.3 + R() * 0.55, reach: (cav ? 17 : 11) + (gen ? 7 : 0) + R() * 3, jy: (R() - 0.5) * 7 }); };
-  mk(gu, true, COLX[gu.g.fc] - 6, LANES[1] + 2);
+  const mk = (u, gen, x, y) => { const cav = u.type === 'cavalry'; list.push({ u, side, gen, type: u.type, pal, hx: X(x), hy: y, off: R(), skin: gen ? SKINS[gu.g.pseed % 5] : pick(SKINS), horse: gen ? 0 : ri(0, 2), ranged: isRanged(u), spd: (gen ? 112 : cav ? 125 : 88) * (0.85 + R() * 0.3), t0: 0.3 + R() * 0.55, reach: (cav ? 17 : 11) + (gen ? 3 : 0) + R() * 3, jy: (R() - 0.5) * 7, kbx: 0, z: 0, vz: 0 }); };
+  mk(gu, true, COLX[gu.g.fc] - 8, LANES[1] + 2);
   for (const u of units) {
     if (u.kind !== 'sq') continue;
     const cell = cellOf(u), bx = COLX[cell & 1], by = LANES[cell >> 1], k = u.type === 'cavalry' ? 1.35 : 1, n = dispN(hpOf(u));
@@ -1459,10 +1466,18 @@ function layoutArmy(gu, units, side, hpOf) {
   for (const so of list) { so.x = so.hx; so.y = so.hy; so.state = 'idle'; }
   return list;
 }
+// ---- impact helpers: knockback, particles, hit-stop, screen shake, floating text
+const HITC = ['#fff8d0', '#ffd24a', '#ffffff', '#ff9a40'], CLANGC = ['#ffffff', '#cfe8ff', '#8ac8ff'], FIREC = ['#ffd060', '#ff9a30', '#fff2b0', '#ff6a20'];
+function knock(so, dir, v, lift) { so.kbx = dir * v; if (lift) { so.vz = Math.max(so.vz || 0, lift); so.z = Math.max(so.z || 0, 0.1); } }
+function burst(S, x, y, n, cols, sp = 70, up = 30) {
+  for (let i = 0; i < n; i++) { const a = R() * 6.283, v = sp * (0.35 + R() * 0.85); S.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.7 - up, t: 0, life: 0.2 + R() * 0.3, c: pick(cols) }); }
+}
+function impact(S, hs, sh, slow) { S.hs = Math.max(S.hs, hs); S.shake = Math.max(S.shake, sh); if (slow) S.slow = Math.max(S.slow, slow); }
+const popup = (S, x, y, text, cls) => S.pops.push({ x, y, text, cls });
 // build a scene for an exchange (info from pairExchange) or a strike skill
 function buildScene(b, info, banners) {
   const leftSide = b.player === 1 ? 1 : 0;
-  const S = { soldiers: [], proj: [], sparks: [], dust: [], booms: [], banners: banners || [], b };
+  const S = { soldiers: [], proj: [], parts: [], rings: [], pops: [], dust: [], booms: [], banners: banners || [], b, hs: 0, slow: 0, shake: 0, flashA: 0 };
   const hpBefore = u => info.before.get(u.uid) ?? u.hp;
   let gL, gR, uL, uR;
   if (info.skill) {
@@ -1486,9 +1501,11 @@ function buildScene(b, info, banners) {
   const shooters = new Map();
   for (const a of (info.acts || [])) {
     for (const so of (S.byU.get(a.a.uid) || [])) so.tgU = a.t;
-    if (isRanged(a.a) && a.dealt > 0) { if (!shooters.has(a.t.uid)) shooters.set(a.t.uid, []); shooters.get(a.t.uid).push(a.a); }
+    if (isRanged(a.a) && a.dealt > 0 && a.a.kind !== 'gen') { if (!shooters.has(a.t.uid)) shooters.set(a.t.uid, []); shooters.get(a.t.uid).push(a.a); }
   }
   S.deaths = []; S.lost = [0, 0]; S.planned = [0, 0]; S.done = [0, 0]; S.troops0 = [0, 0];
+  // squads that got no orders this exchange still skirmish with someone (for show only; nobody dies from it)
+  if (S.mode === 'clash') for (const so of S.soldiers) if (!so.tgU && !so.gen) { const foes = (so.side ? uL : uR).filter(u => u.kind === 'sq' && S.byU.has(u.uid)); if (foes.length) so.tgU = pick(foes); }
   for (const [arr, units, sd] of [[L, uL, 0], [Rr, uR, 1]]) {
     for (const u of units) {
       if (u.kind === 'gen') continue;
@@ -1497,11 +1514,15 @@ function buildScene(b, info, banners) {
       const mine = arr.filter(s => s.u === u), k = dispN(hb) - dispN(u.hp);
       mine.sort(() => R() - 0.5).slice(0, k).forEach(so => {
         const d = { so, t: t0 + R() * (t1 - t0), sd }; S.deaths.push(d); S.planned[sd]++;
-        const sh = shooters.get(u.uid); if (sh && R() < 0.7) { const from = pick(S.byU.get(pick(sh).uid) || []); if (from) { d.t = 0.9 + R() * (t1 - 0.9); S.proj.push({ from, to: so, t0: d.t - 0.5, t1: d.t, kind: from.type === 'mage' ? 'fire' : 'arrow' }); } }
+        const sh = shooters.get(u.uid); if (sh && R() < 0.7) { const from = pick(S.byU.get(pick(sh).uid) || []); if (from) { d.t = 0.9 + R() * (t1 - 0.9); d.shot = true; S.proj.push({ from, to: so, t0: d.t - 0.5, t1: d.t, kind: from.type === 'mage' ? 'fire' : 'arrow' }); } }
       });
     }
     const g = sd ? gR : gL;
-    if (hpBefore(g) > 0 && g.hp <= 0) { const gs = arr[0]; S.deaths.push({ so: gs, t: t1 + 0.1, sd, gen: true }); S.genFall = S.genFall || []; S.genFall.push({ sd, t: t1 + 0.1, g }); }
+    if (hpBefore(g) > 0 && g.hp <= 0) {
+      S.genFall = S.genFall || [];
+      if (S.mode === 'skill') { S.deaths.push({ so: arr[0], t: t1 + 0.1, sd, gen: true }); S.genFall.push({ sd, t: t1 + 0.1, g }); }
+      else S.genFall.push({ sd, t: Infinity, g }); // the duel decides when the blow lands
+    }
   }
   if (S.mode === 'skill') {
     // projectiles to victims
@@ -1513,29 +1534,132 @@ function buildScene(b, info, banners) {
     }
     for (let k = 0; k < (S.sk === 'meteor' ? 4 : 22); k++) { const tgt = pick(S.casterSide ? L : Rr); const t = t0 + R() * (t1 - t0); if (S.sk === 'meteor') S.booms.push({ x: tgt.hx + (R() - 0.5) * 30, y: tgt.hy + (R() - 0.5) * 8, t, big: false }); else S.proj.push({ from: pick(casterArr), to: tgt, t0: t - 0.55, t1: t, kind: 'arrow', high: true, miss: true }); }
   } else {
-    // ranged volleys (visual)
     // each ranged soldier looses arrows on their own rhythm at the unit they are aiming for
-    for (const so of S.soldiers) if (so.ranged && so.tgU) for (let tv = 0.45 + so.off * 0.8; tv < S.end - 2.1; tv += 0.85 + R() * 0.45) { const tg = pick(S.byU.get(so.tgU.uid) || []); if (tg) S.proj.push({ from: so, to: tg, t0: tv, t1: tv + 0.5 + R() * 0.15, kind: so.type === 'mage' ? 'fire' : 'arrow', miss: true }); }
+    for (const so of S.soldiers) if (so.ranged && so.tgU && !so.gen) for (let tv = 0.45 + so.off * 0.8; tv < S.end - 2.1; tv += 0.85 + R() * 0.45) { const tg = pick((S.byU.get(so.tgU.uid) || []).filter(e => !e.gen)); if (tg) S.proj.push({ from: so, to: tg, t0: tv, t1: tv + 0.5 + R() * 0.15, kind: so.type === 'mage' ? 'fire' : 'arrow', miss: true }); }
   }
   S.deaths.sort((a, c) => a.t - c.t);
   S.genHp = [[hpBefore(gL), Math.max(0, gL.hp)], [hpBefore(gR), Math.max(0, gR.hp)]];
+  S.gShow = [S.genHp[0][0], S.genHp[1][0]];
+  if (S.mode === 'clash') S.duel = planDuel(L[0], Rr[0], S.genHp[0][0] - S.genHp[0][1], S.genHp[1][0] - S.genHp[1][1], gL.hp <= 0, gR.hp <= 0);
   S.bg = sceneBg(b.biome, b.siege);
   return S;
 }
+// ---- GENERALS' DUEL: the two commanders seek each other out and trade blows. The HP each one loses in the
+// exchange is split into hits; blocks, dodges and parries (which open a counter) are mixed in around them.
+function planDuel(a, b, lossA, lossB, killA, killB) {
+  const split = loss => { const out = []; if (loss <= 0) return out; let n = loss <= 2 ? 1 : loss <= 5 ? 2 : 3, left = loss; for (; n > 0; n--) { const d = n === 1 ? left : clamp(Math.round(left / n + (R() - 0.5)), 1, left - n + 1); out.push(d); left -= d; } return out; };
+  const pend = [split(lossA), split(lossB)], kill = [killA, killB], beats = [];
+  const hitOn = (at, df, extra) => { const dmg = pend[df].shift(); beats.push(Object.assign({ at, df, res: !pend[df].length && kill[df] ? 'kill' : 'hit', dmg }, extra)); };
+  let extras = clamp(4 - pend[0].length - pend[1].length + ri(0, 1), 1, 3), at = R() < 0.5 ? 0 : 1;
+  // the finishing blow waits until everything else has been played out
+  const canHit = df => pend[df].length > 0 && !(kill[df] && pend[df].length === 1 && (pend[1 - df].length || extras > 0));
+  for (let guard = 0; (pend[0].length || pend[1].length || extras > 0) && beats.length < 8 && guard < 30; guard++) {
+    const df = 1 - at;
+    if (canHit(df) && !(extras > 0 && R() < 0.35)) {
+      hitOn(at, df);
+      if (canHit(df) && R() < 0.45) hitOn(at, df, { combo: true }); // press the advantage
+    } else if (extras > 0) {
+      extras--;
+      const r = R(), res = r < 0.42 ? 'block' : r < 0.68 ? 'dodge' : 'parry';
+      beats.push({ at, df, res });
+      if (res === 'parry' && canHit(at)) { hitOn(df, at, { counter: true }); at = df; } // riposte
+    } else if (!canHit(at) && pend[df].length) hitOn(at, df);
+    at = 1 - at;
+  }
+  for (const sd of [0, 1]) if (pend[sd].length) { const dmg = pend[sd].reduce((s, d) => s + d, 0); pend[sd] = [dmg]; hitOn(1 - sd, sd); }
+  const k = beats.findIndex(x => x.res === 'kill'); if (k >= 0 && k < beats.length - 1) { const kb = beats.splice(k, 1)[0]; delete kb.counter; delete kb.combo; beats.push(kb); }
+  return { gs: [a, b], beats, i: 0, cur: null, next: 0.55, done: !beats.length };
+}
+function stepDuel(S, t, dt) {
+  const D = S.duel, [A, B] = D.gs, other = g => g === A ? B : A, RANGE = 17;
+  const moveTo = (g, gx, gy, k = 1) => {
+    const dx = gx - g.x, dy = gy - g.y, dd = Math.hypot(dx, dy), st = g.spd * k * dt;
+    if (dd <= Math.max(1.5, st)) { g.x = gx; g.y = gy; return true; }
+    g.x += dx / dd * st; g.y += dy / dd * st; g.state = 'run'; g.charge = true; if (R() < 0.15) S.dust.push({ x: g.x - Math.sign(dx) * 4, y: g.y, t: 0 }); return false;
+  };
+  for (const g of D.gs) { if (g.dead) continue; g.state = 'idle'; g.ak = null; g.sp = false; g.charge = false; g.heavy = false; g.face = Math.sign(other(g).x - g.x) || (g.side ? -1 : 1); g.blk = g.blkT != null && t - g.blkT < 0.5 ? t - g.blkT : null; g.roll = g.rollT != null && t - g.rollT < 0.45 ? t - g.rollT : null; }
+  const back = S.end - 1.2;
+  if (D.done) { if (t >= back) for (const g of D.gs) if (!g.dead) { if (moveTo(g, g.hx, g.hy, 1.1)) g.face = g.side ? -1 : 1; else g.face = Math.sign(g.hx - g.x) || g.face; } return; }
+  S.end = Math.max(S.end, t + 1.4);
+  if (!D.cur) { if (t < D.next || t < 0.5) return; D.cur = Object.assign({ t0: null, hit: false }, D.beats[D.i++]); }
+  const c = D.cur, att = D.gs[c.at], def = D.gs[c.df], dir = Math.sign(def.x - att.x) || (att.side ? -1 : 1);
+  if (c.t0 == null) {
+    // close the distance (melee) or take aim (ranged)
+    if (att.ranged) c.t0 = t;
+    else {
+      const dist = Math.abs(def.x - att.x);
+      if (!def.ranged && dist > 44 && def.kbx * dir <= 10) moveTo(def, def.x - dir * (dist - RANGE) / 2, (att.y + def.y) / 2, 0.8); // both rush in for the first clash
+      if (dist <= RANGE + 3 && Math.abs(def.y - att.y) < 3) c.t0 = t; else moveTo(att, def.x - dir * RANGE, def.y, 1.15);
+    }
+    if (c.t0 == null) return;
+  }
+  const u = t - c.t0, tImp = att.ranged ? 0.56 : 0.26, guard = c.res === 'block' || c.res === 'parry';
+  att.state = 'atk'; att.ak = clamp(u / (att.ranged ? 0.5 : 0.48), 0, 1); att.heavy = c.res === 'kill' || !!c.combo; att.face = dir;
+  if (att.ranged && !c.shot && u >= 0.28) { c.shot = true; S.proj.push({ from: att, to: def, t0: t, t1: t + 0.28, kind: att.type === 'mage' ? 'fire' : 'arrow', miss: c.res === 'dodge' }); }
+  if (guard && u > 0.06 && def.blkT == null) def.blkT = t;
+  if (c.res === 'dodge' && u >= tImp - 0.08 && !c.rolled) { c.rolled = true; def.rollT = t; knock(def, dir, 120, 45); }
+  if (!c.hit && u >= tImp) {
+    c.hit = true;
+    const sd = c.df, mx = att.ranged ? def.x - dir * 4 : (att.x + def.x) / 2, my = def.y - 12;
+    if (c.res === 'hit' || c.res === 'kill') {
+      def.flashT = t; S.gShow[sd] = Math.max(S.genHp[sd][1], S.gShow[sd] - c.dmg);
+      if (!att.ranged) knock(att, dir, 45);
+      popup(S, def.x, def.y - 30, '-' + c.dmg, 'dmg');
+      if (c.counter) popup(S, att.x, att.y - 40, 'COUNTER!', 'cnt'); else if (c.combo) popup(S, att.x, att.y - 40, 'COMBO!', 'cnt');
+      if (c.res === 'kill') {
+        def.dead = true; def.deadT = t; knock(def, dir, 240, 175);
+        burst(S, mx, my, 28, HITC, 140, 40); S.rings.push({ x: mx, y: my, t: 0, c: '#fff8d0', r: 26 });
+        impact(S, 0.14, 7, 0.7); S.flashA = 0.55; S.gShow[sd] = 0;
+        popup(S, SW / 2, SH * 0.42, 'DEFEATED!', 'ko');
+        for (const gf of (S.genFall || [])) if (gf.sd === sd) gf.t = t + 0.25;
+      } else {
+        def.hurtT = t; knock(def, dir, 135, c.combo ? 60 : 25);
+        burst(S, mx, my, 14, HITC, 100, 30); S.rings.push({ x: mx, y: my, t: 0, c: '#ffe080', r: 12 });
+        impact(S, 0.07, 3);
+      }
+    } else if (guard) {
+      burst(S, mx, my, 10, CLANGC, 90, 20); S.rings.push({ x: mx, y: my, t: 0, c: c.res === 'parry' ? '#ffd24a' : '#cfe8ff', r: c.res === 'parry' ? 16 : 10 });
+      knock(def, dir, 75); impact(S, 0.05, 1.8);
+      if (c.res === 'parry') { att.hurtT = t; knock(att, -dir, 55); popup(S, def.x, def.y - 34, 'PARRY!', 'par'); }
+      else { knock(att, -dir, 60); popup(S, def.x, def.y - 34, 'BLOCK', 'blk'); }
+    } else { popup(S, def.x, def.y - 34, 'DODGE!', 'blk'); S.dust.push({ x: def.x, y: def.y, t: 0 }, { x: def.x - dir * 4, y: def.y, t: 0 }); }
+  }
+  if (c.hit && u >= tImp + 0.22) {
+    D.cur = null; def.blkT = null;
+    const nx = D.beats[D.i];
+    D.next = t + (nx && nx.counter ? 0.02 : nx && nx.combo ? 0.06 : 0.16 + R() * 0.22);
+    if (c.res === 'kill' || D.i >= D.beats.length) { D.done = true; S.gShow = [S.genHp[0][1], S.genHp[1][1]]; S.end = Math.max(S.end, t + (c.res === 'kill' ? 1.9 : 1.4)); }
+  }
+}
+// a melee soldier's swing lands: usually a hit that shoves the target back, sometimes a clash of steel
+function strike(S, so, tg, t) {
+  const dir = Math.sign(tg.x - so.x) || (so.side ? -1 : 1), cav = so.type === 'cavalry' && !so.hit1; so.hit1 = true;
+  if (cav || R() < 0.55) {
+    tg.hurtT = t; tg.flashT = t; knock(tg, dir, cav ? 150 : 60, cav ? 75 : 0);
+    burst(S, tg.x - dir * 3, tg.y - 10, cav ? 10 : 5, HITC, cav ? 90 : 60, 20); if (cav) impact(S, 0.03, 2);
+  } else { burst(S, (so.x + tg.x) / 2, so.y - 10, 4, CLANGC, 50, 15); knock(tg, dir, 30); knock(so, -dir, 30); }
+}
 function stepScene(S, t, dt) {
-  const tc = S.tc || 99, back = S.end - 1.5;
-  const live = s => !s.dead && !(s.flee && t > s.flee);
+  const tc = S.tc || 99, back = S.duel && !S.duel.done ? 1e9 : S.end - 1.2;
+  const live = s => !s.dead && !(s.flee && t > s.flee), foeOk = e => !(S.duel && e.gen);
   for (const d of S.deaths) if (!d.done && t >= d.t) {
-    d.done = true; d.so.dead = true; d.so.deadT = t; S.done[d.sd]++;
-    S.sparks.push({ x: d.so.x, y: d.so.y - 8, t: 0 });
-    const mate = pick(S.soldiers.filter(s => s.side === d.so.side && !s.dead && !s.gen && !s.ranged)); if (mate) mate.hurtT = t;
+    d.done = true; const so = d.so; so.dead = true; so.deadT = t; so.flashT = t; S.done[d.sd]++;
+    const dir = so.side ? 1 : -1, boom = S.sk === 'meteor';
+    knock(so, dir, 70 + R() * 80 + (boom ? 60 : 0), (boom ? 120 : 45) + R() * 70);
+    burst(S, so.x, so.y - 9, boom ? 10 : 7, boom ? FIREC : HITC, 75, 30);
   }
   for (const gf of (S.genFall || [])) if (!gf.done && t >= gf.t) { gf.done = true; for (const so of S.soldiers) if (so.side === gf.sd && !so.dead && !so.gen) so.flee = t + R() * 0.3; }
+  for (const m of S.booms) if (!m.done && t >= m.t) { m.done = true; impact(S, m.big ? 0.03 : 0, m.big ? 3.5 : 1.5); burst(S, m.x, m.y - 3, m.big ? 12 : 6, FIREC, 110, 50); }
+  if (S.duel) stepDuel(S, t, dt);
   for (const so of S.soldiers) {
+    // knockback and airborne physics apply to everyone, the fallen included
+    if (so.kbx) { so.x = clamp(so.x + so.kbx * dt, 4, SW - 4); so.kbx *= Math.exp(-7 * dt); if (Math.abs(so.kbx) < 2) so.kbx = 0; }
+    if (so.z > 0) { so.vz -= 560 * dt; so.z += so.vz * dt; if (so.z <= 0) { so.z = 0; if (so.vz < -160) { S.dust.push({ x: so.x - 3, y: so.y, t: 0 }, { x: so.x + 3, y: so.y, t: 0 }); so.vz *= -0.3; so.z = 0.1; } else so.vz = 0; } }
     if (so.dead) continue;
+    if (so.gen && S.duel) continue; // the duel drives the generals
     const dir = so.side ? -1 : 1;
     so.ak = null; so.sp = false; so.charge = false;
-    if (so.gen && S.genHp[so.side][1] < S.genHp[so.side][0]) for (const tm of (S.mode === 'clash' ? [tc + 0.45, tc + 1.15] : [1.3])) if (t >= tm && t < tm + 0.4) so.hurtT = tm;
+    if (so.gen && S.genHp[so.side][1] < S.genHp[so.side][0] && !so.hit1 && t >= 1.3) { so.hit1 = true; so.hurtT = t; so.flashT = t; knock(so, -dir, 90, 30); }
     if (so.flee && t > so.flee) { so.state = 'run'; so.face = -dir; so.x -= dir * 70 * dt; continue; }
     so.face = dir;
     if (S.mode === 'clash' && !so.ranged) {
@@ -1545,21 +1669,23 @@ function stepScene(S, t, dt) {
       if (t >= back) { goTo(so.hx, so.hy, 1.15); }
       else if (t >= so.t0) {
         if (so.tgU && (!so.tg || !live(so.tg))) {
-          let c = (S.byU.get(so.tgU.uid) || []).filter(live);
-          if (!c.length) c = S.soldiers.filter(e => e.side !== so.side && live(e));
+          let c = (S.byU.get(so.tgU.uid) || []).filter(e => live(e) && foeOk(e));
+          if (!c.length) c = S.soldiers.filter(e => e.side !== so.side && live(e) && foeOk(e));
           so.tg = c.sort((a, e) => Math.abs(a.y - so.hy) + Math.abs(a.x - so.x) * 0.2 + a.off * 6 - (Math.abs(e.y - so.hy) + Math.abs(e.x - so.x) * 0.2 + e.off * 6))[0] || null;
         }
         let tg = so.tgU ? so.tg : null, engaged = false;
         if (tg) {
-          const rc = so.reach + (tg.gen ? 8 : 0) + (tg.type === 'cavalry' ? 5 : 0), sx = Math.sign(so.x - tg.x) || -dir;
+          const rc = so.reach + (tg.gen ? 2 : 0) + (tg.type === 'cavalry' ? 5 : 0), sx = Math.sign(so.x - tg.x) || -dir;
           engaged = (Math.abs(so.x - tg.x) <= rc + 2 && Math.abs(so.x - tg.x) >= rc * 0.5 && Math.abs(so.y - tg.y) < 5) || goTo(clamp(tg.x + sx * rc, 8, SW - 8), clamp(tg.y + so.jy * 0.4, HOR + 12, SH - 4), 1);
         }
-        else { tg = S.soldiers.find(e => e.side !== so.side && live(e) && Math.abs(e.x - so.x) < 26 && Math.abs(e.y - so.y) < 9); engaged = !!tg; if (!tg && !so.tgU) goTo(so.hx, so.hy, 1); }
+        else { tg = S.soldiers.find(e => e.side !== so.side && live(e) && foeOk(e) && Math.abs(e.x - so.x) < 26 && Math.abs(e.y - so.y) < 9); engaged = !!tg; if (!tg && !so.tgU) goTo(so.hx, so.hy, 1); }
         if (engaged && tg) {
-          so.state = 'atk'; so.face = Math.sign(tg.x - so.x) || dir;
-          if (R() < dt * 2.2) S.sparks.push({ x: (so.x + tg.x) / 2, y: so.y - 8 - R() * 4, t: 0, small: true });
-          if (R() < dt * 0.35 && !tg.gen) tg.hurtT = t;
-        } else if (so.state === 'run') so.charge = true;
+          so.face = Math.sign(tg.x - so.x) || dir;
+          if (so.sw == null || t - so.sw > so.swLen) { so.sw = t; so.swLen = 0.55 + R() * 0.5; so.swHit = false; }
+          const u = t - so.sw;
+          if (u < 0.42) { so.state = 'atk'; so.ak = u / 0.42; }
+          if (!so.swHit && u >= 0.24) { so.swHit = true; strike(S, so, tg, t); }
+        } else if (so.state === 'run') { so.charge = true; so.sw = null; }
       }
     } else {
       const shot = S.proj.find(p => p.from === so && t > p.t0 - 0.55 && t < p.t0 + 0.25);
@@ -1570,25 +1696,39 @@ function stepScene(S, t, dt) {
   }
 }
 const [bigCv, bigCx] = mkCanvas(128, 80);
+// draw one figure; a fresh hit flashes it white (rendered off-screen, tinted, then copied in)
+function drawActor(cx, so, o, t) {
+  const draw = c => so.gen ? (drawGenUnit(c, o, so.u.g) || drawUnit(c, o) || drawSoldier(c, o)) : (drawUnit(c, o) || drawSoldier(c, o));
+  const fl = so.flashT != null ? clamp(1 - (t - so.flashT) / 0.14, 0, 1) : 0, X = Math.round(so.x), Y = Math.round(so.y - (so.z || 0));
+  if (so.z > 1.5 && o.state !== 'dead') { cx.fillStyle = 'rgba(0,0,0,.25)'; cx.fillRect(X - 5, Math.round(so.y) - 1, 11, 2); }
+  if (fl <= 0) { o.x = X; o.y = Y; draw(cx); return; }
+  bigCx.clearRect(0, 0, 128, 80); o.x = 64; o.y = 62; draw(bigCx);
+  bigCx.globalCompositeOperation = 'source-atop'; bigCx.fillStyle = `rgba(255,255,255,${(fl * 0.9).toFixed(2)})`; bigCx.fillRect(0, 0, 128, 80); bigCx.globalCompositeOperation = 'source-over';
+  cx.drawImage(bigCv, X - 64, Y - 62);
+}
 function drawScene(cx, S, t, dt) {
   cx.imageSmoothingEnabled = false;
-  cx.drawImage(S.bg, 0, 0);
+  const sh = S.shake > 0.4 ? S.shake : 0, sx = sh ? Math.round((R() - 0.5) * 2 * sh) : 0, sy = sh ? Math.round((R() - 0.5) * 2 * sh) : 0;
+  cx.drawImage(S.bg, sx, sy);
+  if (sx > 0) cx.drawImage(S.bg, 0, 0, 1, SH, 0, sy, sx, SH); else if (sx < 0) cx.drawImage(S.bg, SW - 1, 0, 1, SH, SW + sx, sy, -sx, SH);
+  if (sy > 0) cx.drawImage(S.bg, 0, 0, SW, 1, 0, 0, SW, sy); else if (sy < 0) cx.drawImage(S.bg, 0, SH - 1, SW, 1, 0, SH + sy, SW, -sy);
+  cx.save(); cx.translate(sx, sy);
   for (const d of S.dust) { d.t += dt; cx.fillStyle = `rgba(180,160,120,${clamp(0.6 - d.t, 0, 1)})`; cx.fillRect(Math.round(d.x), Math.round(d.y - d.t * 8), 2, 2); }
   S.dust = S.dust.filter(d => d.t < 0.6);
   const list = S.soldiers.slice().sort((a, c) => a.y - c.y);
   for (const so of list) {
     let state = so.state, alpha = 1;
-    if (so.dead) { state = 'dead'; alpha = clamp(1.3 - (t - so.deadT) * 1.1, 0, 1); if (alpha <= 0) continue; }
+    if (so.dead) { state = 'dead'; alpha = clamp((so.gen ? 2.6 : 1.3) - (t - so.deadT) * 1.1, 0, 1); if (alpha <= 0) continue; }
     if (so.flee && t > so.flee) alpha = clamp(1 - (t - so.flee) * 0.8, 0, 1);
-    const o = { type: so.type, pal: so.pal, facing: so.face || (so.side ? -1 : 1), state, t: t + so.off * 3, gen: so.gen, skin: so.skin, horse: so.horse, alpha, ak: so.ak, sp: so.sp, av: so.off > 0.5, charge: so.charge };
+    const o = { type: so.type, pal: so.pal, facing: so.face || (so.side ? -1 : 1), state, t: t + so.off * 3, gen: so.gen, skin: so.skin, horse: so.horse, alpha, ak: so.ak, sp: so.sp, av: so.off > 0.5, charge: so.charge, heavy: so.heavy, blk: so.dead ? null : so.blk, roll: so.dead ? null : so.roll };
     if (so.dead) o.dt = t - so.deadT; else if (so.hurtT != null && t >= so.hurtT && t - so.hurtT < 0.4) o.hurt = t - so.hurtT;
     if (so.gen) {
-      bigCx.clearRect(0, 0, 128, 80);
-      if (!so.dead) drawBanner(bigCx, o.facing > 0 ? 57 : 70, 62, so.pal, t, true);
-      Object.assign(o, { x: 64, y: 62 }); drawGenUnit(bigCx, o, so.u.g) || drawUnit(bigCx, o) || drawSoldier(bigCx, o);
-      cx.drawImage(bigCv, Math.round(so.x - 128), Math.round(so.y - 124), 256, 160);
-      if (!so.dead && S.mode === 'skill' && so.side === S.casterSide && t < 1.8) { cx.globalAlpha = 0.25 + 0.2 * Math.sin(t * 12); cx.fillStyle = '#ffe080'; cx.fillRect(Math.round(so.x) - 14, Math.round(so.y) - 2, 28, 3); cx.globalAlpha = 1; }
-    } else { Object.assign(o, { x: so.x, y: so.y }); drawUnit(cx, o) || drawSoldier(cx, o); }
+      const X = Math.round(so.x), Y = Math.round(so.y - so.z);
+      if (!so.dead) drawBanner(cx, X + (o.facing > 0 ? -8 : 7), Y, so.pal, t, true);
+      drawActor(cx, so, o, t);
+      if (!so.dead) { const by = Y - 33 + Math.round(Math.sin(t * 5 + so.side) * 1.2); cx.fillStyle = '#0c0e16'; cx.fillRect(X - 3, by - 1, 7, 1); cx.fillStyle = GOLD; cx.fillRect(X - 2, by, 5, 1); cx.fillRect(X - 1, by + 1, 3, 1); cx.fillRect(X, by + 2, 1, 1); }
+      if (!so.dead && S.mode === 'skill' && so.side === S.casterSide && t < 1.8) { cx.globalAlpha = 0.25 + 0.2 * Math.sin(t * 12); cx.fillStyle = '#ffe080'; cx.fillRect(X - 10, Math.round(so.y) - 2, 20, 3); cx.globalAlpha = 1; }
+    } else drawActor(cx, so, o, t);
   }
   for (const p of S.proj) {
     if (t < p.t0 || t > p.t1) continue;
@@ -1602,21 +1742,39 @@ function drawScene(cx, S, t, dt) {
     if (k > -0.5 && k < 0) { const x = m.x - k * 60, y = m.y + k * 260; cx.fillStyle = '#ff9a30'; cx.fillRect(Math.round(x) - 2, Math.round(y) - 2, 5, 5); cx.fillStyle = '#fff2b0'; cx.fillRect(Math.round(x) - 1, Math.round(y) - 1, 3, 3); cx.fillStyle = 'rgba(255,120,40,.5)'; cx.fillRect(Math.round(x) + 2, Math.round(y) - 7, 3, 6); }
     else if (k >= 0 && k < 0.45) { const r = (m.big ? 14 : 9) * (0.4 + k * 2); cx.globalAlpha = 1 - k / 0.45; cx.fillStyle = '#ffd060'; cx.beginPath(); cx.ellipse(m.x, m.y - 2, r, r * 0.55, 0, 0, 6.29); cx.fill(); cx.fillStyle = '#fff8d0'; cx.beginPath(); cx.ellipse(m.x, m.y - 2, r * 0.5, r * 0.3, 0, 0, 6.29); cx.fill(); cx.globalAlpha = 1; }
   }
-  for (const sp of S.sparks) {
-    sp.t += dt; const a = clamp(1 - sp.t / 0.18, 0, 1); if (a <= 0) continue;
-    cx.globalAlpha = a; cx.fillStyle = '#fff8d0'; const x = Math.round(sp.x), y = Math.round(sp.y);
-    cx.fillRect(x - (sp.small ? 1 : 2), y, sp.small ? 3 : 5, 1); cx.fillRect(x, y - (sp.small ? 1 : 2), 1, sp.small ? 3 : 5);
+  // impact rings and sparks
+  for (const r of S.rings) {
+    r.t += dt; const k = r.t / 0.22; if (k >= 1) continue;
+    cx.globalAlpha = 1 - k; cx.strokeStyle = r.c; cx.lineWidth = 1.5; cx.beginPath(); cx.ellipse(r.x, r.y, 2 + r.r * k, (2 + r.r * k) * 0.8, 0, 0, 6.29); cx.stroke();
+    if (k < 0.35) { cx.fillStyle = '#fff'; const s = Math.round(r.r * 0.6 * (1 - k)); cx.fillRect(Math.round(r.x) - s, Math.round(r.y), s * 2 + 1, 1); cx.fillRect(Math.round(r.x), Math.round(r.y) - s, 1, s * 2 + 1); }
     cx.globalAlpha = 1;
   }
-  S.sparks = S.sparks.filter(s => s.t < 0.2);
+  S.rings = S.rings.filter(r => r.t < 0.22);
+  for (const p of S.parts) {
+    p.t += dt; p.vy += 300 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= Math.exp(-3 * dt);
+    if (p.t >= p.life) continue;
+    cx.globalAlpha = clamp(1.4 - p.t / p.life, 0, 1); cx.fillStyle = p.c;
+    const big = p.t < p.life * 0.4; cx.fillRect(Math.round(p.x), Math.round(p.y), big ? 2 : 1, big ? 2 : 1);
+  }
+  cx.globalAlpha = 1; S.parts = S.parts.filter(p => p.t < p.life);
+  cx.restore();
   if (S.mode === 'skill' && S.sk === 'meteor' && S.booms.some(m => Math.abs(t - m.t) < 0.04 && m.big)) { cx.fillStyle = 'rgba(255,200,120,.25)'; cx.fillRect(0, 0, SW, SH); }
+  if (S.flashA > 0) { cx.fillStyle = `rgba(255,250,235,${S.flashA.toFixed(2)})`; cx.fillRect(0, 0, SW, SH); S.flashA = Math.max(0, S.flashA - dt * 2.5); }
+  // floating combat text lives in the DOM so it stays crisp at any screen size
+  if (S.pops.length) {
+    const box = $('#spops');
+    for (const p of S.pops) { const el = document.createElement('div'); el.className = 'spop ' + (p.cls || ''); el.textContent = p.text; el.style.left = ((p.x + sx) / SW * 100).toFixed(2) + '%'; el.style.top = ((p.y + sy) / SH * 100).toFixed(2) + '%'; el.onanimationend = () => el.remove(); box.appendChild(el); }
+    S.pops = [];
+  }
   // HUD bars
   const bar = (el, sd) => {
     const g = sd ? S.gR : S.gL, pal = G.pals[g.g.faction], gh = S.genHp[sd];
     const prog = S.planned[sd] ? S.done[sd] / S.planned[sd] : (t > S.end - 1 ? 1 : 0);
     const troops = Math.max(0, S.troops0[sd] - Math.round(S.lost[sd] * prog));
-    const ghp = Math.round(lerp(gh[0], gh[1], clamp((t - (S.tc || 0.9)) / 1.4, 0, 1)));
-    const key = troops + ':' + ghp; if (el._k === key) return; el._k = key;
+    const ghp = S.duel ? Math.max(0, Math.round(S.gShow[sd])) : Math.round(lerp(gh[0], gh[1], clamp((t - (S.tc || 0.9)) / 1.4, 0, 1)));
+    const key = troops + ':' + ghp; if (el._k === key) return;
+    if (el._k && +el._k.split(':')[1] > ghp) { el.classList.remove('hit'); void el.offsetWidth; el.classList.add('hit'); }
+    el._k = key;
     el.innerHTML = `<div style="min-width:0"><div style="color:${pal.light};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${g.g.name}</div><div class="sub">${g.g.cls} Lv${g.g.lvl}</div></div><div class="big" style="white-space:nowrap"><span style="color:${ghp <= 3 ? '#ffb070' : '#fff'}"><i class="ico ico-helmet"></i>${ghp}</span> <span style="font-size:.7em"><i class="ico ico-people"></i>${troops}</span></div>`;
     el.style.borderColor = pal.main;
   };
@@ -1629,15 +1787,18 @@ function drawScene(cx, S, t, dt) {
 function playScene(S) {
   return new Promise(res => {
     const cv = $('#scenecv'); cv.width = SW; cv.height = SH; const cx = cv.getContext('2d');
-    const el = $('#scene'); el.style.display = 'flex'; $('#sbL')._k = $('#sbR')._k = $('#sban')._k = null;
+    const el = $('#scene'); el.style.display = 'flex'; $('#sbL')._k = $('#sbR')._k = $('#sban')._k = null; $('#spops').innerHTML = '';
     let last = performance.now(), t = 0, done = false;
-    const finish = () => { if (done) return; done = true; el.onpointerdown = null; $('#sban').innerHTML = ''; res(); };
+    const finish = () => { if (done) return; done = true; el.onpointerdown = null; $('#sban').innerHTML = ''; $('#spops').innerHTML = ''; res(); };
     $('#sskipall').onpointerdown = e => { e.stopPropagation(); SKIP.round = true; finish(); };
     setTimeout(() => { if (!done) el.onpointerdown = finish; }, 150);
     const frame = now => {
       if (done) return;
-      const dt = Math.min(0.05, (now - last) / 1000) * SET.speed; last = now; t += dt;
-      stepScene(S, t, dt); drawScene(cx, S, t, dt);
+      const raw = Math.min(0.05, (now - last) / 1000); last = now;
+      // hit-stop freezes the action for a few frames; slow-motion lingers on a decisive blow
+      let dt = raw * SET.speed;
+      if (S.hs > 0) { S.hs -= raw; dt *= 0.06; } else if (S.slow > 0) { S.slow -= raw; dt *= 0.35; }
+      t += dt; stepScene(S, t, dt); S.shake *= Math.exp(-raw * 9); drawScene(cx, S, t, dt);
       if (t > S.end) { setTimeout(finish, 120); return; }
       requestAnimationFrame(frame);
     };
