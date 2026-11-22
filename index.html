@@ -1498,31 +1498,10 @@ function pairings(b) {
   for (let i = 0; i < n; i++) out.push([L[i % L.length], Rg[i % Rg.length]]);
   return out;
 }
-// one army-vs-army exchange; returns info for the scene
+// one army-vs-army exchange: the same soldier-by-soldier clash the battle scene shows, run without drawing it
 function pairExchange(b, gA, gB) {
   if (gA.hp <= 0 || gB.hp <= 0) return null;
-  const A = [gA, ...squadsOf(b, gA)], B = [gB, ...squadsOf(b, gB)], all = A.concat(B);
-  const before = new Map(all.map(u => [u.uid, u.hp]));
-  const acts = all.map(u => ({ u, k: tier(u) + R() * 0.5 })).sort((x, y) => x.k - y.k);
-  const falls = [], log = [];
-  for (const a of acts) {
-    if (b.over || a.u.hp <= 0) continue;
-    const foes = (a.u.side === gA.side ? B : A).filter(x => x.hp > 0); if (!foes.length) break;
-    const t = formTarget(a.u, foes); if (!t) continue;
-    if (a.u.kind === 'gen' && a.u.hp <= 3 && squadsOf(b, a.u).length) { const o = odds(b, a.u, t); if (o.eDealt * (t.kind === 'gen' ? 1.8 : 1) - o.eTaken * 2.2 < 2) continue; }
-    const rc = rollClash(b, a.u, t); log.push({ a: a.u, t, dealt: rc.dealt, taken: rc.taken });
-    const ev = applyClash(b, a.u, t, rc);
-    for (const e of ev) if (e.t === 'genfall') falls.push(e.u);
-    if (gA.hp <= 0 || gB.hp <= 0) break;
-  }
-  // priests mend the most wounded squad in their army once the exchange is over
-  const heals = [];
-  if (!b.over) for (const grp of [A, B]) for (const p of grp) {
-    if (p.kind !== 'sq' || p.type !== 'priest' || p.hp <= 0) continue;
-    const t = grp.filter(u => u.kind === 'sq' && u.hp > 0 && u.hp < sqMax(u.g)).sort((x, y) => x.hp - y.hp)[0]; if (!t) continue;
-    const n = Math.min(sqMax(t.g) - t.hp, p.hp >= 6 ? 2 : 1); t.hp += n; heals.push({ u: t, n, by: p });
-  }
-  return { A, B, before, falls, gA, gB, acts: log, heals };
+  const S = buildClash(b, gA, gB); runClash(S); return finishClash(S);
 }
 function endRound(b) { b.round++; if (!b.over && b.round > b.maxRounds) { b.over = true; b.winner = 1; b.timeout = true; } }
 function simulateBattle(b) {
@@ -1596,7 +1575,7 @@ const SOUNDS = {
   page: [0.08, () => { hiss(0.12, 0.08, 'bandpass', 1800, 900, 0, 1.5); }],
 };
 function sfx(name, vol = 1) {
-  if (!SET.vol || !SOUNDS[name]) return; const c = audio(); if (!c || c.state !== 'running') return;
+  if (SIM_QUIET || !SET.vol || !SOUNDS[name]) return; const c = audio(); if (!c || c.state !== 'running') return;
   const now = c.currentTime, [cd, play] = SOUNDS[name]; if (SFX.last[name] && now - SFX.last[name] < cd) return; SFX.last[name] = now;
   try { play(vol); } catch (e) { }
 }
@@ -1689,12 +1668,12 @@ async function playBattle(scenes) {
   while (!b.over) {
     for (const [x, y] of pairings(b)) {
       if (b.over) break;
-      const info = pairExchange(b, x, y); if (!info) continue;
-      if (!SKIP.round) {
-        const bn = []; for (const g of [x, y]) if (pendingBan.has(g.uid)) { bn.push(pendingBan.get(g.uid)); pendingBan.delete(g.uid); }
-        $('#sround').textContent = `Round ${b.round}/${b.maxRounds}`;
-        await playScene(buildScene(b, info, bn));
-      }
+      if (x.hp <= 0 || y.hp <= 0) continue;
+      const bn = []; for (const g of [x, y]) if (pendingBan.has(g.uid)) { bn.push(pendingBan.get(g.uid)); pendingBan.delete(g.uid); }
+      const S = buildClash(b, x, y, bn);
+      if (!SKIP.round) { $('#sround').textContent = `Round ${b.round}/${b.maxRounds}`; await playScene(S); }
+      runClash(S); // the rest of the clash if it was skipped (nothing left if it was watched to the end)
+      const info = finishClash(S);
       for (const g of info.falls) toast(`<i class="ico ico-helmet"></i> ${g.g.name} has fallen! ${g.side === b.player ? 'Your' : 'Enemy'} troops flee.`);
     }
     endRound(b);
@@ -1853,37 +1832,88 @@ function buildScene(b, info, banners) {
   S.deaths.sort((a, c) => a.t - c.t);
   S.genHp = [[hpBefore(gL), Math.max(0, gL.hp)], [hpBefore(gR), Math.max(0, gR.hp)]];
   S.gShow = [S.genHp[0][0], S.genHp[1][0]];
-  S.heals = (info.heals || []).map((h, i) => ({ ...h, t: S.tc + 2.0 + i * 0.25 }));
-  if (S.mode === 'clash') S.duel = planDuel(L[0], Rr[0], S.genHp[0][0] - S.genHp[0][1], S.genHp[1][0] - S.genHp[1][1], gL.hp <= 0, gR.hp <= 0);
   S.bg = sceneBg(b.biome, b.siege);
   return S;
 }
-// ---- GENERALS' DUEL: the two commanders seek each other out and trade blows. The HP each one loses in the
-// exchange is split into hits; blocks, dodges and parries (which open a counter) are mixed in around them.
-function planDuel(a, b, lossA, lossB, killA, killB) {
-  const split = loss => { const out = []; if (loss <= 0) return out; let n = loss <= 2 ? 1 : loss <= 5 ? 2 : 3, left = loss; for (; n > 0; n--) { const d = n === 1 ? left : clamp(Math.round(left / n + (R() - 0.5)), 1, left - n + 1); out.push(d); left -= d; } return out; };
-  const pend = [split(lossA), split(lossB)], kill = [killA, killB], beats = [];
-  const hitOn = (at, df, extra) => { const dmg = pend[df].shift(); beats.push(Object.assign({ at, df, res: !pend[df].length && kill[df] ? 'kill' : 'hit', dmg }, extra)); };
-  let extras = clamp(4 - pend[0].length - pend[1].length + ri(0, 1), 1, 3), at = R() < 0.5 ? 0 : 1;
-  // the finishing blow waits until everything else has been played out
-  const canHit = df => pend[df].length > 0 && !(kill[df] && pend[df].length === 1 && (pend[1 - df].length || extras > 0));
-  for (let guard = 0; (pend[0].length || pend[1].length || extras > 0) && beats.length < 8 && guard < 30; guard++) {
-    const df = 1 - at;
-    if (canHit(df) && !(extras > 0 && R() < 0.35)) {
-      hitOn(at, df);
-      if (canHit(df) && R() < 0.45) hitOn(at, df, { combo: true }); // press the advantage
-    } else if (extras > 0) {
-      extras--;
-      const r = R(), res = r < 0.42 ? 'block' : r < 0.68 ? 'dodge' : 'parry';
-      beats.push({ at, df, res });
-      if (res === 'parry' && canHit(at)) { hitOn(df, at, { counter: true }); at = df; } // riposte
-    } else if (!canHit(at) && pend[df].length) hitOn(at, df);
-    at = 1 - at;
+// ---- LIVE CLASH: every figure carries real soldiers of its squad. Each sword swing and each arrow rolls to hit
+// with the matchup odds (counters, terrain, skills, techs...), and a hit removes soldiers. Generals duel with rolled
+// blows. The scene draws this simulation; Quick Resolve and AI battles run the very same steps without drawing.
+const LIVE = { melee: 0.85, shot: 0.95, gen: 1.2, duel: 5.5, fight: 6.0, dt: 1 / 30 }; // tuned so losses and General falls per clash match the earlier rules
+let SIM_QUIET = false; // headless runs: no sounds
+function buildClash(b, gA, gB, banners) {
+  const leftSide = b.player === 1 ? 1 : 0;
+  const [gL, gR] = gA.side === leftSide ? [gA, gB] : [gB, gA];
+  const S = { soldiers: [], proj: [], parts: [], rings: [], pops: [], dust: [], booms: [], deaths: [], banners: banners || [], b, hs: 0, slow: 0, shake: 0, flashA: 0, mode: 'clash', live: true, t: 0, tc: 1.4, fightEnd: LIVE.fight, oc: new Map(), xp: {}, gL, gR };
+  S.uL = [gL, ...squadsOf(b, gL)]; S.uR = [gR, ...squadsOf(b, gR)];
+  const L = layoutArmy(gL, S.uL, 0, u => u.hp), Rr = layoutArmy(gR, S.uR, 1, u => u.hp);
+  S.soldiers = L.concat(Rr);
+  S.byU = new Map(); for (const so of S.soldiers) { if (!S.byU.has(so.u.uid)) S.byU.set(so.u.uid, []); S.byU.get(so.u.uid).push(so); }
+  // soldiers per figure, and who each squad lines up against (the enemy squad in its row; the General only when no squad is left)
+  for (const [mine, foes] of [[S.uL, S.uR], [S.uR, S.uL]]) for (const u of mine) {
+    const figs = S.byU.get(u.uid) || []; if (u.kind === 'gen') { for (const so of figs) { so.hp = u.hp; so.maxHp = genMaxHp(u.g); } continue; }
+    figs.forEach((so, k) => { so.hp = Math.floor(u.hp / figs.length) + (k < u.hp % figs.length ? 1 : 0); });
+    const tgt = formTarget(u, foes.filter(e => e.kind === 'sq' && e.hp > 0)) || foes[0];
+    for (const so of figs) { so.tgU = tgt; if (so.ranged) so.nextShot = 0.45 + so.off * 0.8; if (so.type === 'priest') so.nextHeal = 1.6 + so.off; }
   }
-  for (const sd of [0, 1]) if (pend[sd].length) { const dmg = pend[sd].reduce((s, d) => s + d, 0); pend[sd] = [dmg]; hitOn(1 - sd, sd); }
-  const k = beats.findIndex(x => x.res === 'kill'); if (k >= 0 && k < beats.length - 1) { const kb = beats.splice(k, 1)[0]; delete kb.counter; delete kb.combo; beats.push(kb); }
-  return { gs: [a, b], beats, i: 0, cur: null, next: 0.55, done: !beats.length };
+  S.troopMax = [S.uL, S.uR].map(us => Math.max(1, us.filter(u => u.kind === 'sq').reduce((a, u) => a + sqMax(u.g), 0)));
+  S.duel = { gs: [L[0], Rr[0]], cur: null, next: 0.55, at: R() < 0.5 ? 0 : 1, done: false };
+  S.end = S.fightEnd + 1.6;
+  S.bg = sceneBg(b.biome, b.siege);
+  return S;
 }
+// run a clash to its end without drawing (also finishes a watched clash the player skipped)
+function runClash(S) {
+  SIM_QUIET = true;
+  try { while (!clashDone(S)) { S.t += LIVE.dt; stepScene(S, S.t, LIVE.dt); S.parts.length = S.rings.length = S.dust.length = S.pops.length = 0; } }
+  finally { SIM_QUIET = false; }
+}
+const clashDone = S => S.t >= S.fightEnd + 0.7 && !S.proj.some(p => p.fx && !p.done);
+// write the clash back into the battle: squads keep the soldiers their figures still carry; a fallen General's troops rout
+function finishClash(S) {
+  const b = S.b, falls = [];
+  for (const u of S.uL.concat(S.uR)) {
+    const figs = S.byU.get(u.uid) || [];
+    u.hp = Math.max(0, figs.reduce((a, so) => a + (so.dead ? 0 : Math.max(0, so.hp)), 0));
+  }
+  for (const k in S.xp) b.xp[k] = (b.xp[k] || 0) + S.xp[k];
+  for (const g of [S.gL, S.gR]) if (g.hp <= 0) { falls.push(g); killU(b, g); }
+  checkEnd(b);
+  return { falls, gA: S.gL, gB: S.gR };
+}
+const liveTroops = (S, sd) => S.soldiers.reduce((a, so) => a + (so.side === sd && !so.gen && !so.dead && !(so.flee && S.t > so.flee) ? Math.max(0, so.hp) : 0), 0);
+// chance that one swing / arrow / duel blow from a lands on d: the battle odds, cached per pair of units
+function hitP(S, a, d) {
+  const key = a.u.uid + '>' + d.u.uid; let pA = S.oc.get(key);
+  if (pA == null) { pA = odds(S.b, a.u, d.u).pA; S.oc.set(key, pA); }
+  return pA * (a.gen && d.gen ? LIVE.duel : a.ranged ? LIVE.shot : LIVE.melee) * (d.gen && !a.gen ? LIVE.gen : 1);
+}
+const credit = (S, so, n) => { const id = so.u.g.id; S.xp[id] = (S.xp[id] || 0) + n; };
+// n soldiers of figure tg go down (a General loses n HP)
+function wound(S, tg, n, t, src, dir, big) {
+  if (tg.dead) return;
+  tg.hp -= n; credit(S, src, 2 * n);
+  if (tg.gen) {
+    popup(S, tg.x, tg.y - 30, '-' + n, 'dmg');
+    if (tg.hp <= 0) return genDie(S, tg, t, dir, src);
+    tg.hurtT = t; tg.flashT = t; knock(tg, dir, big ? 135 : 60, big ? 40 : 0);
+    burst(S, tg.x - dir * 3, tg.y - 12, big ? 14 : 6, HITC, big ? 100 : 60, 30); if (big) { S.rings.push({ x: tg.x - dir * 4, y: tg.y - 12, t: 0, c: '#ffe080', r: 12 }); impact(S, 0.07, 3); sfx('heavy'); } else sfx('hit');
+    return;
+  }
+  if (tg.hp <= 0) {
+    credit(S, src, 3); tg.dead = true; tg.deadT = t; tg.flashT = t;
+    knock(tg, dir, 70 + R() * 80, 45 + R() * 70); burst(S, tg.x, tg.y - 9, 7, HITC, 75, 30); sfx('death');
+    if (!(S.byU.get(tg.u.uid) || []).some(f => !f.dead)) credit(S, src, 8); // squad wiped out
+  } else { tg.hurtT = t; tg.flashT = t; knock(tg, dir, big ? 150 : 60, big ? 75 : 0); burst(S, tg.x - dir * 3, tg.y - 10, big ? 10 : 5, HITC, big ? 90 : 60, 20); sfx(big ? 'heavy' : 'hit'); if (big) impact(S, 0.03, 2); }
+}
+function genDie(S, g, t, dir, src) {
+  g.hp = 0; g.dead = true; g.deadT = t; g.flashT = t; credit(S, src, 25); knock(g, dir, 240, 175);
+  burst(S, g.x, g.y - 12, 28, HITC, 140, 40); S.rings.push({ x: g.x, y: g.y - 12, t: 0, c: '#fff8d0', r: 26 });
+  impact(S, 0.14, 7, 0.7); S.flashA = 0.55; sfx('ko'); popup(S, SW / 2, SH * 0.42, 'DEFEATED!', 'ko');
+  for (const so of S.soldiers) if (so.side === g.side && !so.dead && !so.gen) so.flee = t + 0.25 + R() * 0.3; // their troops break
+  S.fightEnd = Math.min(S.fightEnd, t + 0.6); S.end = Math.max(S.fightEnd + 1.9, t + 2);
+}
+// ---- the Generals' duel: they seek each other out and trade blows, each one rolled from their stats as it begins;
+// a miss is blocked, dodged or parried (a parry opens an instant counter); a solid hit can be followed by a combo
 function stepDuel(S, t, dt) {
   const D = S.duel, [A, B] = D.gs, other = g => g === A ? B : A, RANGE = 17;
   const moveTo = (g, gx, gy, k = 1) => {
@@ -1892,13 +1922,20 @@ function stepDuel(S, t, dt) {
     g.x += dx / dd * st; g.y += dy / dd * st; g.state = 'run'; g.charge = true; if (R() < 0.15) S.dust.push({ x: g.x - Math.sign(dx) * 4, y: g.y, t: 0 }); return false;
   };
   for (const g of D.gs) { if (g.dead) continue; g.state = 'idle'; g.ak = null; g.sp = false; g.charge = false; g.heavy = false; g.face = Math.sign(other(g).x - g.x) || (g.side ? -1 : 1); g.blk = g.blkT != null && t - g.blkT < 0.5 ? t - g.blkT : null; g.roll = g.rollT != null && t - g.rollT < 0.45 ? t - g.rollT : null; }
-  const back = S.end - 1.2;
-  if (D.done) { if (t >= back) for (const g of D.gs) if (!g.dead) { if (moveTo(g, g.hx, g.hy, 1.1)) g.face = g.side ? -1 : 1; else g.face = Math.sign(g.hx - g.x) || g.face; } return; }
-  S.end = Math.max(S.end, t + 1.4);
-  if (!D.cur) { if (t < D.next || t < 0.5) return; D.cur = Object.assign({ t0: null, hit: false }, D.beats[D.i++]); }
+  if (A.dead || B.dead) D.done = true;
+  if (!D.cur && t >= S.fightEnd) D.done = true;
+  if (D.done) { if (t >= S.fightEnd) for (const g of D.gs) if (!g.dead) { if (moveTo(g, g.hx, g.hy, 1.1)) g.face = g.side ? -1 : 1; else g.face = Math.sign(g.hx - g.x) || g.face; } return; }
+  if (!D.cur) {
+    if (t < D.next) return;
+    const at = D.at, att = D.gs[at], def = D.gs[1 - at], c = { at, df: 1 - at, t0: null, hit: false, counter: D.counter, combo: D.combo };
+    if (R() < clamp(hitP(S, att, def), 0.08, 0.85)) { c.dmg = 1 + (R() < 0.35 ? 1 : 0) + (c.combo ? 0 : 0); c.res = def.hp - c.dmg <= 0 ? 'kill' : 'hit'; }
+    else { const r = R(); c.res = r < 0.45 ? 'block' : r < 0.75 ? 'dodge' : 'parry'; }
+    D.counter = c.res === 'parry'; D.combo = c.res === 'hit' && !c.combo && R() < 0.35;
+    D.at = D.counter ? 1 - at : D.combo ? at : 1 - at; D.cur = c;
+  }
   const c = D.cur, att = D.gs[c.at], def = D.gs[c.df], dir = Math.sign(def.x - att.x) || (att.side ? -1 : 1);
+  if (att.dead || def.dead) { D.cur = null; return; }
   if (c.t0 == null) {
-    // close the distance (melee) or take aim (ranged)
     if (att.ranged) c.t0 = t;
     else {
       const dist = Math.abs(def.x - att.x);
@@ -1914,23 +1951,11 @@ function stepDuel(S, t, dt) {
   if (c.res === 'dodge' && u >= tImp - 0.08 && !c.rolled) { c.rolled = true; def.rollT = t; knock(def, dir, 120, 45); }
   if (!c.hit && u >= tImp) {
     c.hit = true;
-    const sd = c.df, mx = att.ranged ? def.x - dir * 4 : (att.x + def.x) / 2, my = def.y - 12;
+    const mx = att.ranged ? def.x - dir * 4 : (att.x + def.x) / 2, my = def.y - 12;
     if (c.res === 'hit' || c.res === 'kill') {
-      def.flashT = t; S.gShow[sd] = Math.max(S.genHp[sd][1], S.gShow[sd] - c.dmg);
       if (!att.ranged) knock(att, dir, 45);
-      popup(S, def.x, def.y - 30, '-' + c.dmg, 'dmg');
       if (c.counter) popup(S, att.x, att.y - 40, 'COUNTER!', 'cnt'); else if (c.combo) popup(S, att.x, att.y - 40, 'COMBO!', 'cnt');
-      if (c.res === 'kill') {
-        def.dead = true; def.deadT = t; knock(def, dir, 240, 175);
-        burst(S, mx, my, 28, HITC, 140, 40); S.rings.push({ x: mx, y: my, t: 0, c: '#fff8d0', r: 26 });
-        impact(S, 0.14, 7, 0.7); S.flashA = 0.55; S.gShow[sd] = 0; sfx('ko');
-        popup(S, SW / 2, SH * 0.42, 'DEFEATED!', 'ko');
-        for (const gf of (S.genFall || [])) if (gf.sd === sd) gf.t = t + 0.25;
-      } else {
-        def.hurtT = t; knock(def, dir, 135, c.combo ? 60 : 25);
-        burst(S, mx, my, 14, HITC, 100, 30); S.rings.push({ x: mx, y: my, t: 0, c: '#ffe080', r: 12 });
-        impact(S, 0.07, 3); sfx('heavy');
-      }
+      wound(S, def, c.dmg, t, att, dir, true);
     } else if (guard) {
       burst(S, mx, my, 10, CLANGC, 90, 20); S.rings.push({ x: mx, y: my, t: 0, c: c.res === 'parry' ? '#ffd24a' : '#cfe8ff', r: c.res === 'parry' ? 16 : 10 });
       knock(def, dir, 75); impact(S, 0.05, 1.8); sfx('clang');
@@ -1938,34 +1963,28 @@ function stepDuel(S, t, dt) {
       else { knock(att, -dir, 60); popup(S, def.x, def.y - 34, 'BLOCK', 'blk'); }
     } else { sfx('whoosh'); popup(S, def.x, def.y - 34, 'DODGE!', 'blk'); S.dust.push({ x: def.x, y: def.y, t: 0 }, { x: def.x - dir * 4, y: def.y, t: 0 }); }
   }
-  if (c.hit && u >= tImp + 0.22) {
-    D.cur = null; def.blkT = null;
-    const nx = D.beats[D.i];
-    D.next = t + (nx && nx.counter ? 0.02 : nx && nx.combo ? 0.06 : 0.16 + R() * 0.22);
-    if (c.res === 'kill' || D.i >= D.beats.length) { D.done = true; S.gShow = [S.genHp[0][1], S.genHp[1][1]]; S.end = Math.max(S.end, t + (c.res === 'kill' ? 1.9 : 1.4)); }
-  }
+  if (c.hit && u >= tImp + 0.22) { D.cur = null; def.blkT = null; D.next = t + (D.counter ? 0.02 : D.combo ? 0.06 : 0.16 + R() * 0.22); }
 }
-// a melee soldier's swing lands: usually a hit that shoves the target back, sometimes a clash of steel
+// a melee soldier's swing lands: rolled against the matchup odds (a cavalry charge hits harder); a miss clashes steel
 function strike(S, so, tg, t) {
   const dir = Math.sign(tg.x - so.x) || (so.side ? -1 : 1), cav = so.type === 'cavalry' && !so.hit1; so.hit1 = true;
-  if (tg.gen) { sfx('clang'); burst(S, (so.x + tg.x) / 2, so.y - 11, 5, CLANGC, 60, 15); S.rings.push({ x: (so.x + tg.x) / 2, y: so.y - 11, t: 0, c: '#cfe8ff', r: 7 }); knock(so, -dir, cav ? 90 : 50); return; } // a General's HP only moves in the duel
-  if (cav || R() < 0.55) {
-    tg.hurtT = t; tg.flashT = t; knock(tg, dir, cav ? 150 : 60, cav ? 75 : 0); sfx(cav ? 'heavy' : 'hit');
-    burst(S, tg.x - dir * 3, tg.y - 10, cav ? 10 : 5, HITC, cav ? 90 : 60, 20); if (cav) impact(S, 0.03, 2);
-  } else { burst(S, (so.x + tg.x) / 2, so.y - 10, 4, CLANGC, 50, 15); knock(tg, dir, 30); knock(so, -dir, 30); sfx('clang'); }
+  if (R() < clamp(hitP(S, so, tg) * (cav ? 1.8 : 1), 0.02, 0.9)) wound(S, tg, cav && R() < 0.5 ? 2 : 1, t, so, dir, cav);
+  else if (tg.gen) { sfx('clang'); burst(S, (so.x + tg.x) / 2, so.y - 11, 5, CLANGC, 60, 15); S.rings.push({ x: (so.x + tg.x) / 2, y: so.y - 11, t: 0, c: '#cfe8ff', r: 7 }); knock(so, -dir, cav ? 90 : 50); }
+  else { burst(S, (so.x + tg.x) / 2, so.y - 10, 4, CLANGC, 50, 15); knock(tg, dir, 30); knock(so, -dir, 30); sfx('clang'); }
 }
-// who a soldier goes after: their own target squad while it stands, then the nearest remaining row of the enemy
-// formation; the enemy General counts as part of the middle row (soldiers prefer troops at the same distance)
+// who a soldier goes after: their own target squad while it stands, then the nearest remaining enemy soldiers;
+// the enemy General only once no enemy soldier is left standing
 function nextFoe(S, so, t) {
   const live = e => e.side !== so.side && !e.dead && !(e.flee && t > e.flee);
-  const own = so.tgU ? (S.byU.get(so.tgU.uid) || []).filter(e => live(e) && !e.gen) : [];
-  const c = own.length ? own : S.soldiers.filter(live);
-  const cost = e => Math.abs(e.y - so.hy) + Math.abs(e.x - so.x) * 0.2 + e.off * 6 + (e.gen ? 8 : 0);
+  let c = so.tgU ? (S.byU.get(so.tgU.uid) || []).filter(e => live(e) && !e.gen) : [];
+  if (!c.length) c = S.soldiers.filter(e => live(e) && !e.gen);
+  if (!c.length) c = S.soldiers.filter(e => live(e) && e.gen);
+  const cost = e => Math.abs(e.y - so.hy) + Math.abs(e.x - so.x) * 0.2 + e.off * 6;
   let best = null, bc = 1e9; for (const e of c) { const v = cost(e); if (v < bc) { bc = v; best = e; } }
   return best;
 }
 function stepScene(S, t, dt) {
-  const tc = S.tc || 99, back = S.duel && !S.duel.done ? 1e9 : S.end - 1.2;
+  const back = S.live ? S.fightEnd : S.end - 1.2;
   const live = s => !s.dead && !(s.flee && t > s.flee), foeOk = e => !(S.duel && e.gen);
   for (const d of S.deaths) if (!d.done && t >= d.t) {
     d.done = true; const so = d.so; so.dead = true; so.deadT = t; so.flashT = t; S.done[d.sd]++;
@@ -1975,15 +1994,10 @@ function stepScene(S, t, dt) {
   }
   for (const gf of (S.genFall || [])) if (!gf.done && t >= gf.t) { gf.done = true; for (const so of S.soldiers) if (so.side === gf.sd && !so.dead && !so.gen) so.flee = t + R() * 0.3; }
   for (const m of S.booms) if (!m.done && t >= m.t) { m.done = true; sfx(m.bolt ? 'zap' : 'boom', m.big ? 1 : 0.6); impact(S, m.big ? 0.03 : 0, m.big ? 3.5 : 1.5); burst(S, m.x, m.y - 3, m.big ? 12 : 6, m.bolt ? CLANGC : FIREC, 110, 50); if (m.bolt && m.big) S.flashA = Math.max(S.flashA, 0.3); }
-  for (const h of (S.heals || [])) if (!h.done && t >= h.t) {
-    h.done = true; const tg = (S.byU.get(h.u.uid) || []).filter(s => !s.dead && !(s.flee && t > s.flee));
-    const so = pick(tg); if (so) { popup(S, so.x, so.y - 28, '+' + h.n, 'heal'); sfx('heal'); }
-  }
-  // a volley that lands without killing: soldiers flinch back, a General knocks it aside
+  // arrows and bolts land: a hit costs the target soldiers (or HP), a miss sticks in the ground
   for (const p of S.proj) if (p.fx && !p.done && t >= p.t1) {
-    p.done = true; const tg = p.to; if (tg.dead) continue; const dir = Math.sign(tg.x - p.from.x) || 1; sfx(tg.gen ? 'clang' : 'hit', 0.6);
-    if (tg.gen) burst(S, tg.x - dir * 4, tg.y - 12, 4, CLANGC, 50, 15);
-    else { tg.hurtT = t; tg.flashT = t; knock(tg, dir, 35); burst(S, tg.x - dir * 2, tg.y - 8, 3, HITC, 40, 10); }
+    p.done = true; const tg = p.to; if (tg.dead || !p.hit) continue;
+    wound(S, tg, 1, t, p.from, Math.sign(tg.x - p.from.x) || 1, false);
   }
   if (S.duel) stepDuel(S, t, dt);
   for (const so of S.soldiers) {
@@ -1994,7 +2008,7 @@ function stepScene(S, t, dt) {
     if (so.gen && S.duel) continue; // the duel drives the generals
     const dir = so.side ? -1 : 1;
     so.ak = null; so.sp = false; so.charge = false;
-    if (so.gen && S.genHp[so.side][1] < S.genHp[so.side][0] && !so.hit1 && t >= 1.3) { so.hit1 = true; so.hurtT = t; so.flashT = t; knock(so, -dir, 90, 30); }
+    if (!S.live && so.gen && S.genHp[so.side][1] < S.genHp[so.side][0] && !so.hit1 && t >= 1.3) { so.hit1 = true; so.hurtT = t; so.flashT = t; knock(so, -dir, 90, 30); }
     if (so.flee && t > so.flee) { so.state = 'run'; so.face = -dir; so.x -= dir * 70 * dt; continue; }
     so.face = so.ranged && so.aimDir ? so.aimDir : dir;
     if (S.mode === 'clash' && !so.ranged) {
@@ -2021,12 +2035,20 @@ function stepScene(S, t, dt) {
     } else {
       if (S.mode === 'clash' && so.ranged && !so.gen && so.nextShot != null && t >= so.nextShot && t < back - 0.6) {
         const tg = nextFoe(S, so, t);
-        if (tg) { sfx(so.type === 'priest' ? 'cast' : 'bow'); const hit = tg.gen || R() < 0.5, fl = 0.45 + Math.abs(tg.x - so.x) / 600 + R() * 0.1; S.proj.push({ from: so, to: tg, t0: t + 0.5, t1: t + 0.5 + fl, kind: projKind(so.type), miss: !hit, fx: hit }); so.aimDir = Math.sign(tg.x - so.x) || so.aimDir; so.face = so.aimDir || so.face; }
+        if (tg) { sfx(so.type === 'priest' ? 'cast' : 'bow'); const hit = R() < clamp(hitP(S, so, tg), 0.02, 0.9), fl = 0.45 + Math.abs(tg.x - so.x) / 600 + R() * 0.1; S.proj.push({ from: so, to: tg, t0: t + 0.5, t1: t + 0.5 + fl, kind: projKind(so.type), miss: !hit, hit, fx: true }); so.aimDir = Math.sign(tg.x - so.x) || so.aimDir; so.face = so.aimDir || so.face; }
         so.nextShot = t + 1.3 + R() * 0.5;
       }
       const shot = S.proj.find(p => p.from === so && t > p.t0 - 0.55 && t < p.t0 + 0.25);
       const casting = S.mode === 'skill' && so.gen && so.side === S.casterSide && t > 0.5 && t < 1.6;
-      const heal = !so.gen && so.type === 'priest' && (S.heals || []).find(h => h.by === so.u && t > h.t - 0.55 && t < h.t + 0.1);
+      // priests mend the most wounded squad of their army, one soldier at a time
+      if (S.live && so.type === 'priest' && so.nextHeal != null && t >= so.nextHeal && t < back) {
+        so.nextHeal = t + 2.6 + R() * 0.6;
+        const mine = (so.side ? S.uR : S.uL).filter(u => u.kind === 'sq'), tot = u => (S.byU.get(u.uid) || []).reduce((a, f) => a + (f.dead ? 0 : f.hp), 0);
+        const w = mine.filter(u => tot(u) > 0 && tot(u) < sqMax(u.g)).sort((a, c) => tot(a) / sqMax(a.g) - tot(c) / sqMax(c.g))[0];
+        const f = w && (S.byU.get(w.uid) || []).filter(f => !f.dead).sort((a, c) => a.hp - c.hp)[0];
+        if (f) { f.hp++; credit(S, so, 1); so.healT = t; popup(S, f.x, f.y - 28, '+1', 'heal'); sfx('heal'); }
+      }
+      const heal = !so.gen && so.type === 'priest' && so.healT != null && t - so.healT < 0.6 ? { t: so.healT + 0.55 } : null;
       so.state = shot || casting || heal ? 'atk' : 'idle';
       if (casting) { so.ak = (t - 0.5) / 1.1; so.sp = true; } else if (heal) { so.ak = (t - heal.t + 0.55) / 0.65; so.sp = true; } else if (shot) so.ak = (t - shot.t0 + 0.55) / 0.8;
     }
@@ -2122,14 +2144,14 @@ function drawScene(cx, S, t, dt) {
   }
   // HUD bars
   const bar = (el, sd) => {
-    const g = sd ? S.gR : S.gL, pal = G.pals[g.g.faction], gh = S.genHp[sd];
-    const prog = S.planned[sd] ? S.done[sd] / S.planned[sd] : (t > S.end - 1 ? 1 : 0);
-    const troops = Math.max(0, S.troops0[sd] - Math.round(S.lost[sd] * prog));
-    const ghp = S.duel ? Math.max(0, Math.round(S.gShow[sd])) : Math.round(lerp(gh[0], gh[1], clamp((t - (S.tc || 0.9)) / 1.4, 0, 1)));
+    const g = sd ? S.gR : S.gL, pal = G.pals[g.g.faction], gh = S.genHp && S.genHp[sd];
+    let troops, ghp;
+    if (S.live) { troops = liveTroops(S, sd); ghp = Math.max(0, S.duel.gs[sd].hp); }
+    else { const prog = S.planned[sd] ? S.done[sd] / S.planned[sd] : (t > S.end - 1 ? 1 : 0); troops = Math.max(0, S.troops0[sd] - Math.round(S.lost[sd] * prog)); ghp = Math.round(lerp(gh[0], gh[1], clamp((t - (S.tc || 0.9)) / 1.4, 0, 1))); }
     const key = troops + ':' + ghp; if (el._k === key) return;
     if (!el._k) {
       // built once per scene: portrait, name, then the General's HP bar stacked over the troops bar
-      const tmax = Math.max(1, (sd ? S.uR : S.uL).filter(u => u.kind === 'sq').reduce((a, u) => a + sqMax(u.g), 0));
+      const tmax = S.live ? S.troopMax[sd] : Math.max(1, (sd ? S.uR : S.uL).filter(u => u.kind === 'sq').reduce((a, u) => a + sqMax(u.g), 0));
       el._max = [genMaxHp(g.g), tmax]; el.style.borderColor = pal.main;
       el.innerHTML = `<div class="sport"></div><div class="sinfo"><div class="sname"><span style="color:${pal.dark}">${g.g.name}</span><span class="sub">${g.g.cls} Lv${g.g.lvl}</span></div>
         <div class="shp gen"><i class="lag"></i><i class="fill"></i><span><i class="ico ico-helmet"></i><b></b></span></div>
@@ -2155,7 +2177,7 @@ function playScene(S) {
   return new Promise(res => {
     const cv = $('#scenecv'); cv.width = SW; cv.height = SH; const cx = cv.getContext('2d');
     const el = $('#scene'); el.style.display = 'flex'; $('#sbL')._k = $('#sbR')._k = $('#sban')._k = null; $('#spops').innerHTML = '';
-    let last = performance.now(), t = 0, done = false;
+    let last = performance.now(), done = false;
     const finish = () => { if (done) return; done = true; el.onpointerdown = null; $('#sban').innerHTML = ''; $('#spops').innerHTML = ''; res(); };
     $('#sskipall').onpointerdown = e => { e.stopPropagation(); SKIP.round = true; finish(); };
     setTimeout(() => { if (!done) el.onpointerdown = finish; }, 150);
@@ -2165,8 +2187,8 @@ function playScene(S) {
       // hit-stop freezes the action for a few frames; slow-motion lingers on a decisive blow
       let dt = raw * SET.speed;
       if (S.hs > 0) { S.hs -= raw; dt *= 0.06; } else if (S.slow > 0) { S.slow -= raw; dt *= 0.35; }
-      t += dt; stepScene(S, t, dt); S.shake *= Math.exp(-raw * 9); drawScene(cx, S, t, dt);
-      if (t > S.end) { setTimeout(finish, 120); return; }
+      const t = S.t = (S.t || 0) + dt; stepScene(S, t, dt); S.shake *= Math.exp(-raw * 9); drawScene(cx, S, t, dt);
+      if (t > S.end && (!S.live || clashDone(S))) { setTimeout(finish, 120); return; }
       requestAnimationFrame(frame);
     };
     requestAnimationFrame(frame);
