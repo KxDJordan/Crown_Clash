@@ -2677,7 +2677,7 @@ function applyBattle(res, S, attG, tgt) {
     logMsg(`${W ? W.name : 'Someone'} destroyed a bandit camp.`); if (wF === 0) { sfx('capture'); toast('<i class="ico ico-skull"></i> Bandit camp destroyed! +120 gold, +20 ore', 4000); }
   }
   if (attWon && S.city && attF === BANDIT) {
-    const c = S.city, O = G.factions[c.owner], loot = Math.min(O.gold, 30 + 25 * c.level); O.gold -= loot; c.garrison = 0.1; c.pop = Math.floor((c.pop || 0) / 2);
+    const c = S.city, O = G.factions[c.owner], loot = Math.min(O.gold, 30 + 25 * c.level); O.gold -= loot; c.garrison = 0.1; c.pop = Math.floor((c.pop || 0) / 2); c.lootT = G.turn; // raiders leave a plundered town alone for 5 turns
     const msg = `Bandits plundered ${c.name}, stealing ${loot} gold`; logMsg(msg); if (c.owner === 0) toast('<i class="ico ico-alert"></i> ' + msg, 4000);
   } else if (attWon && S.city) {
     const c = S.city, old = c.owner;
@@ -2853,7 +2853,7 @@ async function aiArmy(g, F) {
     const cands = [];
     const band = g.faction === BANDIT; // raiders go after the kingdoms only, never the Free Towns
     for (const e of G.gens) if (e.status === 'field' && e.faction !== g.faction && (!band || e.faction < NEUTRAL)) cands.push({ kind: 'army', g: e, x: e.x, y: e.y });
-    for (const c of G.cities) if (c.owner !== g.faction && !armyAt(c.x, c.y) && (!band || c.owner < NEUTRAL)) cands.push({ kind: 'city', c, x: c.x, y: c.y });
+    for (const c of G.cities) if (c.owner !== g.faction && !armyAt(c.x, c.y) && (!band || (c.owner < NEUTRAL && !(c.lootT && G.turn - c.lootT < 5)))) cands.push({ kind: 'city', c, x: c.x, y: c.y });
     for (const t of cands) {
       const [fi, fd] = adjBest(t.x, t.y); if (fi < 0 || fd > 1e8) continue;
       const dp = defPower(t, g.faction); const ratio = my / Math.max(1, dp);
