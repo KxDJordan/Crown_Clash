@@ -100,6 +100,11 @@ th{color:var(--dim);font-weight:400;font-size:15px;letter-spacing:1px;text-trans
 .troops{display:flex;flex-wrap:wrap;gap:3px}.tq{display:inline-flex;align-items:flex-end;background:var(--inset);border:2px solid var(--edge2);padding:1px 3px}
 .tq canvas{width:18px;height:21px}.tq i{font-style:normal;font-size:14px;margin-left:1px}
 .abl{display:flex;gap:6px;flex-wrap:wrap}
+.stree{display:flex;flex-direction:column;gap:4px;margin:4px 0}.stier{display:flex;gap:4px;align-items:stretch}.slv{flex:none;width:34px;font-size:13px;color:var(--dim);padding-top:6px}
+.snode{flex:1;min-width:0;display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:5px;text-align:left;font:inherit;font-size:14px;line-height:1.1;padding:4px 6px;border:2px solid #b08a50;background:#f6e6c4;color:var(--text);cursor:default}
+.snode .si{grid-row:1/3;align-self:center}.snode .sn{font-weight:bold}.snode .sd{font-size:12px;color:var(--dim)}
+.snode.got{background:#ffd76a;border-color:#9a6710}.snode.can{border-color:var(--green);box-shadow:0 0 0 2px #7ad86a66;cursor:pointer}.snode.can:hover{background:#eaf7d6}.snode.lock{opacity:.55}
+.sp{font-size:14px;padding:1px 6px;border:2px solid #b08a50;margin-left:4px}.sp.on{border-color:var(--green);color:#2f7a2a}
 .formw{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.form{display:grid;grid-template-columns:repeat(2,62px);gap:4px}
 .form .fh{font-size:14px;color:var(--dim);text-align:center;line-height:1;letter-spacing:1px;text-transform:uppercase}
 .fcell{height:44px;background:var(--inset);border:2px solid var(--edge2);border-radius:0;display:flex;align-items:flex-end;justify-content:center;gap:1px;padding:1px;color:var(--text);font:inherit;font-size:15px;position:relative;overflow:hidden}
@@ -161,7 +166,8 @@ th{color:var(--dim);font-weight:400;font-size:15px;letter-spacing:1px;text-trans
 #tPanel{max-width:min(560px,92vw);text-align:left}#tPanel h3{margin:4px 0 8px;color:var(--accent)}#tPanel p{color:var(--text);font-size:17px;margin:6px 0}
 #tLoad{position:fixed;inset:0;z-index:46;display:none;align-items:center;justify-content:center;background:#0e1019aa}#tLoad .toast{font-size:22px;animation:none}
 #title{overflow-y:auto;align-items:flex-start}#title .tb{margin:auto}
-#title.setup h1,#title.setup .crest{display:none}#title.setup .tb{margin-top:auto;padding-top:18px}
+#title.setup h1,#title.setup .crest{display:none}
+@media (max-height:520px){#title .wp{display:none}}#title.setup .tb{margin-top:auto;padding-top:18px}
 @media (max-width:640px){.tsw{flex-direction:column}.tprev{width:100%;display:flex;gap:8px;align-items:center}.tprev canvas{width:46%}#tCrisisInfo{margin-left:0!important}}
 @media (max-width:760px),(max-height:520px){.trow>span{width:76px;font-size:14px}.tform{gap:4px}#title .seg .btn{font-size:13px;min-height:26px;padding:2px 6px 1px}.trow input[type=text]{font-size:15px;padding:3px 6px 2px}#tCrisisInfo{margin-left:86px!important;font-size:13px!important}.tbtns{margin-top:6px}#title.setup .tb{padding:12px 12px 6px}}
 input[type=text]{font-family:var(--fb);font-size:20px;background:var(--inset);color:var(--text);border:2px solid var(--edge);border-radius:0;padding:7px 10px 6px;width:260px;text-align:center}
@@ -343,6 +349,7 @@ td,th{border-color:var(--edge2)}
   <div class="tsw">
    <div class="tform">
     <label class="trow"><span>Kingdom</span><input type="text" id="kname" value="Kingdom of Aster" maxlength="24"></label>
+    <div class="trow"><span>Your General</span><div class="seg" data-opt="cls"><button class="btn sm" data-v="Fighter">Fighter<span class="wp"> (Sword)</span></button><button class="btn sm" data-v="Lancer">Lancer<span class="wp"> (Spear)</span></button><button class="btn sm" data-v="Berserker">Berserker<span class="wp"> (Axe)</span></button><button class="btn sm" data-v="Rogue">Rogue<span class="wp"> (Dagger)</span></button><button class="btn sm" data-v="Mage">Mage<span class="wp"> (Wand)</span></button></div></div>
     <div class="trow"><span>Map size</span><div class="seg" data-opt="size"><button class="btn sm" data-v="s">Small</button><button class="btn sm" data-v="m">Medium</button><button class="btn sm" data-v="l">Large</button></div></div>
     <div class="trow"><span>Land</span><div class="seg" data-opt="shape"><button class="btn sm" data-v="continent">Continent</button><button class="btn sm" data-v="pangaea">Pangaea</button><button class="btn sm" data-v="twin">Twin Continents</button><button class="btn sm" data-v="inland">Inland Sea</button><button class="btn sm" data-v="archi">Archipelago</button></div></div>
     <div class="trow"><span>Rivals</span><div class="seg" data-opt="enemies"><button class="btn sm" data-v="1">1</button><button class="btn sm" data-v="2">2</button><button class="btn sm" data-v="3">3</button></div></div>
@@ -405,12 +412,15 @@ const TROOPS = {
 };
 // matchups: infantry > spearmen > cavalry > infantry; archers > priests > monsters (monsters arrive later)
 const BEATS = { infantry: ['spear'], spear: ['cavalry', 'armored'], cavalry: ['infantry'], archer: ['priest'], priest: ['monster'], monster: [], mage: ['armored'], armored: ['infantry', 'blade'], blade: ['spear', 'archer'] };
+// General classes follow the weapon in their battle sprite: sword, spear, axe, dagger, wand
+const CLASS_WPN = { Fighter: 'Sword', Lancer: 'Spear', Berserker: 'Axe', Rogue: 'Dagger', Mage: 'Wand' };
+const LEGACY_CLS = { Knight: 'Berserker', Ranger: 'Rogue' }; // classes from older saves
 const CLASSES = {
   Fighter: { type: 'infantry', atk: 23, def: 19, mov: 5, wmov: 4, fav: 'infantry', rng: 1, g: [2, 2, 2, 1] },
   Lancer: { type: 'spear', atk: 21, def: 22, mov: 5, wmov: 4, fav: 'spear', rng: 1, g: [1, 2, 2, 1] },
-  Knight: { type: 'cavalry', atk: 24, def: 17, mov: 7, wmov: 5, fav: 'cavalry', rng: 1, g: [2, 1, 1, 1] },
-  Ranger: { type: 'archer', atk: 21, def: 15, mov: 5, wmov: 4, fav: 'archer', rng: 2, g: [2, 1, 1, 1] },
-  Mage: { type: 'mage', atk: 22, def: 13, mov: 4, wmov: 4, fav: null, rng: 2, g: [2, 1, 1, 2] },
+  Berserker: { type: 'armored', atk: 26, def: 16, mov: 5, wmov: 4, fav: 'armored', rng: 1, g: [3, 1, 1, 1] },
+  Rogue: { type: 'blade', atk: 22, def: 14, mov: 6, wmov: 5, fav: 'blade', rng: 1, g: [2, 1, 1, 2] },
+  Mage: { type: 'mage', atk: 22, def: 13, mov: 4, wmov: 4, fav: 'priest', rng: 2, g: [2, 1, 1, 2] },
 };
 const TECHS = [
   { id: 'agri', n: 'Agriculture', c: 1, req: [], br: 'Economy', d: '+15% gold income' },
@@ -1090,11 +1100,11 @@ function portrait(g) {
 // The battle and overworld sheets only cover foot soldiers and mages, so mounted and ranged generals keep the
 // built-in sprites there. Every general gets a layered portrait. If Gen/ is missing everything falls back to the old art.
 const GEN_P = 'Gen/Portrait/heroes99_portrait/', GEN_O = 'Gen/Overworld/heroes99_overworld/', GEN_B = 'Gen/Battle/';
-const GEN_CLOTH = { Fighter: [1, 2, 3, 4, 6, 11, 12, 13, 14, 15, 16, 17], Lancer: [2, 4, 11, 12, 13, 14, 15], Knight: [12, 13, 14, 15], Ranger: [1, 3, 6, 11, 16, 17], Mage: [5, 7, 8, 9, 10] };
-const GEN_WEAPON = { Fighter: [1, 1, 2, 3], Lancer: [4], Mage: [5] }; // 1 sword, 2 axe, 3 dagger, 4 spear, 5 wand (4 gem colours)
+const GEN_CLOTH = { Fighter: [1, 2, 3, 4, 6, 11, 12, 13, 14, 15, 16, 17], Lancer: [2, 4, 11, 12, 13, 14, 15], Berserker: [2, 4, 12, 13, 14, 15], Rogue: [1, 3, 6, 11, 16, 17], Mage: [5, 7, 8, 9, 10] };
+const GEN_WEAPON = { Fighter: [1], Berserker: [2], Rogue: [3], Lancer: [4], Mage: [5] }; // 1 sword, 2 axe, 3 dagger, 4 spear, 5 wand (4 gem colours)
 const GEN_CLOTH_RGB = [[190, 45, 45], [50, 90, 190], [45, 140, 70], [120, 70, 180], [80, 78, 84], [215, 165, 40], null, [170, 200, 230]]; // cloth colours c1..c8 (c7 is mixed)
 const GEN_HAIR_NAT = [1, 3, 7, 8, 9, 10]; // red, blond, dark brown, brown, black, white; the rest are green/blue/purple/pink
-const genModular = g => { const t = CLASSES[g.cls].type; return t === 'infantry' || t === 'spear' || t === 'mage'; };
+const genModular = g => !!GEN_WEAPON[g.cls];
 // Everything about a general's appearance derives from pseed, so old saves get a look for free.
 function genLook(g) {
   const r = mulberry32(((g.pseed || 1) ^ 0x5bd1e995) >>> 0), n = k => 1 + Math.floor(r() * k), of = a => a[Math.floor(r() * a.length)];
@@ -1141,14 +1151,14 @@ function genReset() { genSheets.clear(); genWalk.clear(); }
 function drawGenUnit(ctx, o, g) {
   if (!g || !genModular(g)) return false; const s = genSheet(g, 'B'); if (!s.cv) return false;
   const mage = g.cls === 'Mage', t = o.t || 0, x = Math.round(o.x), y = Math.round(o.y);
-  const A = mage ? [[11, 5], [11, 5]] : g.cls === 'Lancer' ? [[7, 4], [5, 6]] : [[5, 6], [6, 6]];
+  const A = mage ? [[11, 5], [11, 5]] : g.cls === 'Lancer' ? [[7, 4], [5, 6]] : g.cls === 'Berserker' ? [[8, 6], [6, 6]] : g.cls === 'Rogue' ? [[9, 4], [5, 6]] : [[5, 6], [6, 6]];
   let row, n, fr;
   if (o.state === 'dead') { row = 13; fr = Math.min(4, Math.floor((o.dt || 0) * 9)); }
   else if (o.hurt != null) { row = 12; fr = Math.min(3, Math.floor(o.hurt * 10)); }
   else if (o.roll != null) { row = 16; fr = Math.min(7, Math.floor(o.roll * 18)); }
   else if (o.blk != null) { row = 15; fr = Math.min(4, 1 + Math.floor(o.blk * 12)); }
   else if (o.state === 'atk') {
-    if (o.ak != null) { [row, n] = o.sp ? [10, 5] : o.heavy && !mage ? [8, 6] : A[o.av ? 1 : 0]; fr = Math.min(n - 1, Math.floor(clamp(o.ak, 0, 1) * n)); }
+    if (o.ak != null) { [row, n] = o.sp ? (mage ? [11, 5] : [10, 5]) : o.heavy && !mage ? [8, 6] : A[o.av ? 1 : 0]; fr = Math.min(n - 1, Math.floor(clamp(o.ak, 0, 1) * n)); }
     else if (mage) { row = 11; fr = 2 + Math.floor(t * 8) % 3; }
     else { const f = Math.floor(t * 11) % (A[0][1] + A[1][1]); if (f < A[0][1]) { row = A[0][0]; fr = f; } else { row = A[1][0]; fr = f - A[0][1]; } }
   }
@@ -1184,7 +1194,7 @@ function portraitImg(g, size = 64) {
 // ============ GENERALS ============
 let GID = 1;
 function makeGeneral(faction, stars, cls) {
-  cls = cls || pick(Object.keys(CLASSES)); const C = CLASSES[cls];
+  cls = LEGACY_CLS[cls] || (CLASSES[cls] ? cls : pick(Object.keys(CLASSES))); const C = CLASSES[cls];
   return {
     id: GID++, name: genName(), faction, cls, stars, lvl: 1, xp: 0,
     atk: C.atk + stars * 2 + ri(-1, 2), def: C.def + stars * 2 + ri(-1, 2), ldr: 12 + stars * 5 + ri(0, 4), cmd: 9 + stars * 3 + ri(0, 3),
@@ -1193,12 +1203,12 @@ function makeGeneral(faction, stars, cls) {
 }
 const hasTech = (f, id) => !!(G.factions[f] && G.factions[f].techs.includes(id));
 const maxSquads = g => Math.min(5, clamp(1 + Math.floor(g.ldr / 12), 1, 6) + (hasTech(g.faction, 'drill') ? 1 : 0));
-const cmdBonus = g => 1 + Math.floor(g.cmd / 10) + (hasTech(g.faction, 'tactics') ? 1 : 0);
+const cmdBonus = g => 1 + Math.floor(g.cmd / 10) + (hasTech(g.faction, 'tactics') ? 1 : 0) + passives(g).cmd;
 const cmdRange = g => 2 + (g.cmd >= 28 ? 1 : 0) + (hasTech(g.faction, 'tactics') ? 1 : 0);
-const worldMove = g => Math.max(2, CLASSES[g.cls].wmov + (hasTech(g.faction, 'logistics') ? 1 : 0) - (crisisOn('winter') ? 2 : 0));
+const worldMove = g => Math.max(2, CLASSES[g.cls].wmov + (hasTech(g.faction, 'logistics') ? 1 : 0) + passives(g).mv - (crisisOn('winter') ? 2 : 0));
 const xpNeed = l => 40 + l * 30;
 // soldiers per squad grow with the General's Leadership (which rises every level): 10 at the start, up to 24
-const sqMax = g => clamp(10 + Math.floor(Math.max(0, g.ldr - 20) / 5), 10, 24);
+const sqMax = g => clamp(10 + Math.floor(Math.max(0, g.ldr - 20) / 5), 10, 24) + passives(g).size;
 function troopAtk(f, type) { let a = TROOPS[type].atk; if (hasTech(f, 'forge')) a += 2; if (hasTech(f, 'steel')) a += 3; if (type === 'archer' && hasTech(f, 'longbow')) a += 3; if (type === 'cavalry' && hasTech(f, 'lances')) a += 3; return a; }
 function troopDef(f, type) { let d = TROOPS[type].def; if (hasTech(f, 'shields')) d += 2; if (hasTech(f, 'plate')) d += 3; if (type === 'spear' && hasTech(f, 'pikes')) d += 3; return d; }
 const troopUnlocked = (f, type) => !TROOPS[type].req || hasTech(f, TROOPS[type].req);
@@ -1211,26 +1221,77 @@ function gainXP(g, xp) {
     g.xp -= xpNeed(g.lvl); g.lvl++; ups++; const gr = CLASSES[g.cls].g;
     g.atk += ri(1, gr[0]); g.def += ri(1, gr[1]); g.ldr += ri(1, gr[2] + 1); g.cmd += ri(0, gr[3]);
   }
+  if (ups && g.faction !== 0) autoLearn(g); else if (ups && skillPts(g) > 0 && typeof toast === 'function') toast(`<i class="ico ico-star"></i> ${g.name} reached Lv ${g.lvl} and can learn a new skill!`, 4000);
   const grow = sqMax(g) - m0; if (grow > 0) for (const s of g.squads) if (s.hp > 0) s.hp = Math.min(sqMax(g), s.hp + grow); // new recruits rally to a rising General
   return ups;
 }
 function armyPower(g) { let p = 10 * (g.atk + g.def) / 40; for (const s of g.squads) p += s.hp * (TROOPS[s.type].atk + TROOPS[s.type].def) / 30; return p * (1 + cmdBonus(g) * 0.05); }
 
 // ============ ABILITIES ============
+// Skill trees: each class has 7 skills in 4 tiers (tier t opens at level SKILL_LV[t]); each needs the one before it.
+// Active skills (fx) are picked before a battle; passive skills (p) always apply. Skill points: 1 per 2 levels.
+//   p: a/d army ATK/DEF multiplier, ra ranged ATK multiplier, ghp General HP, size soldiers per squad,
+//      mv world movement, fav favored-troop ATK/DEF, sdmg extra opening-strike damage, cmd command aura
+const SKILL_LV = [1, 3, 6, 10];
 const ABIL = {
-  warcry: { n: 'War Cry', cls: 'Fighter', lv: 1, i: '<i class="ico ico-banner"></i>', d: 'Army +20% ATK', fx: { a: 1.2 } },
-  rally: { n: 'Rally', cls: 'Fighter', lv: 5, i: '<i class="ico ico-heart"></i>', d: 'Heal every squad +3, army +10% DEF', fx: { d: 1.1, heal: 3 } },
-  phalanx: { n: 'Phalanx', cls: 'Lancer', lv: 1, i: '<i class="ico ico-shield"></i>', d: 'Army +25% DEF', fx: { d: 1.25 } },
-  menace: { n: 'Intimidate', cls: 'Lancer', lv: 5, i: '<i class="ico ico-skull"></i>', d: 'All enemies -15% ATK', fx: { ea: 0.85 } },
-  lance: { n: 'Lance Charge', cls: 'Knight', lv: 1, i: '<i class="ico ico-spear"></i>', d: 'Army +30% ATK, -10% DEF', fx: { a: 1.3, d: 0.9 } },
-  breach: { n: 'Breakthrough', cls: 'Knight', lv: 5, i: '<i class="ico ico-clash"></i>', d: 'Ignore enemy General guard, army +10% ATK', fx: { a: 1.1, noguard: 1 } },
-  arrows: { n: 'Arrow Rain', cls: 'Ranger', lv: 1, i: '<i class="ico ico-bow"></i>', d: 'Opening volley: 2 dmg to every enemy squad', fx: { strike: 2, sk: 'arrows' } },
-  hawkeye: { n: 'Hawkeye', cls: 'Ranger', lv: 5, i: '<i class="ico ico-compass"></i>', d: 'Ranged units in army +40% ATK', fx: { ra: 1.4 } },
-  meteor: { n: 'Meteor', cls: 'Mage', lv: 1, i: '<i class="ico ico-torch"></i>', d: 'Opening blast: 3 dmg to every enemy squad, 1 to Generals', fx: { strike: 3, gstrike: 1, sk: 'meteor' } },
-  bless: { n: 'Blessing', cls: 'Mage', lv: 5, i: '<i class="ico ico-potion"></i>', d: 'Army +15% ATK & DEF', fx: { a: 1.15, d: 1.15 } },
+  warcry: { n: 'War Cry', cls: 'Fighter', t: 0, i: '<i class="ico ico-banner"></i>', d: 'Army +20% ATK', fx: { a: 1.2 } },
+  rally: { n: 'Rally', cls: 'Fighter', t: 1, req: 'warcry', i: '<i class="ico ico-heart"></i>', d: 'Heal every squad +3, army +10% DEF', fx: { d: 1.1, heal: 3 } },
+  drill: { n: 'Drill Sergeant', cls: 'Fighter', t: 1, req: 'warcry', i: '<i class="ico ico-swords"></i>', d: 'Passive: Infantry squads +3 ATK/DEF', p: { fav: 3 } },
+  secondwind: { n: 'Second Wind', cls: 'Fighter', t: 2, req: 'rally', i: '<i class="ico ico-potion"></i>', d: 'Passive: General +3 HP in battle', p: { ghp: 3 } },
+  edge: { n: 'Keen Edge', cls: 'Fighter', t: 2, req: 'drill', i: '<i class="ico ico-clash"></i>', d: 'Passive: army +10% ATK', p: { a: 1.1 } },
+  laststand: { n: 'Last Stand', cls: 'Fighter', t: 3, req: 'secondwind', i: '<i class="ico ico-shield"></i>', d: 'Army +30% DEF, heal every squad +2', fx: { d: 1.3, heal: 2 } },
+  warlord: { n: 'Warlord', cls: 'Fighter', t: 3, req: 'edge', i: '<i class="ico ico-crown"></i>', d: 'Passive: command aura +1', p: { cmd: 1 } },
+
+  phalanx: { n: 'Phalanx', cls: 'Lancer', t: 0, i: '<i class="ico ico-shield"></i>', d: 'Army +25% DEF', fx: { d: 1.25 } },
+  menace: { n: 'Intimidate', cls: 'Lancer', t: 1, req: 'phalanx', i: '<i class="ico ico-skull"></i>', d: 'All enemies -15% ATK', fx: { ea: 0.85 } },
+  pikewall: { n: 'Pike Wall', cls: 'Lancer', t: 1, req: 'phalanx', i: '<i class="ico ico-spear"></i>', d: 'Passive: army +10% DEF', p: { d: 1.1 } },
+  bulwark: { n: 'Bulwark', cls: 'Lancer', t: 2, req: 'menace', i: '<i class="ico ico-tower"></i>', d: 'Passive: General +3 HP in battle', p: { ghp: 3 } },
+  recruiter: { n: 'Recruiter', cls: 'Lancer', t: 2, req: 'pikewall', i: '<i class="ico ico-people"></i>', d: 'Passive: +2 soldiers per squad', p: { size: 2 } },
+  fortress: { n: 'Living Fortress', cls: 'Lancer', t: 3, req: 'bulwark', i: '<i class="ico ico-castle"></i>', d: 'Army +40% DEF', fx: { d: 1.4 } },
+  marshal: { n: 'Marshal', cls: 'Lancer', t: 3, req: 'recruiter', i: '<i class="ico ico-crown"></i>', d: 'Passive: command aura +1', p: { cmd: 1 } },
+
+  lance: { n: 'Bloodrage', cls: 'Berserker', t: 0, i: '<i class="ico ico-torch"></i>', d: 'Army +30% ATK, -10% DEF', fx: { a: 1.3, d: 0.9 } },
+  breach: { n: 'Breakthrough', cls: 'Berserker', t: 1, req: 'lance', i: '<i class="ico ico-clash"></i>', d: 'Ignore enemy General guard, army +10% ATK', fx: { a: 1.1, noguard: 1 } },
+  thickskin: { n: 'Thick Skin', cls: 'Berserker', t: 1, req: 'lance', i: '<i class="ico ico-shield"></i>', d: 'Passive: General +3 HP in battle', p: { ghp: 3 } },
+  cleave: { n: 'Cleave', cls: 'Berserker', t: 2, req: 'breach', i: '<i class="ico ico-swords"></i>', d: 'Passive: army +10% ATK', p: { a: 1.1 } },
+  ironclad: { n: 'Ironclad', cls: 'Berserker', t: 2, req: 'thickskin', i: '<i class="ico ico-helmet"></i>', d: 'Passive: Armored Warriors +3 ATK/DEF', p: { fav: 3 } },
+  warpath: { n: 'Warpath', cls: 'Berserker', t: 3, req: 'cleave', i: '<i class="ico ico-skull"></i>', d: 'Army +45% ATK, -15% DEF', fx: { a: 1.45, d: 0.85 } },
+  juggernaut: { n: 'Juggernaut', cls: 'Berserker', t: 3, req: 'ironclad', i: '<i class="ico ico-rocks"></i>', d: 'Passive: army +10% DEF, +2 soldiers per squad', p: { d: 1.1, size: 2 } },
+
+  arrows: { n: 'Ambush', cls: 'Rogue', t: 0, i: '<i class="ico ico-bow"></i>', d: 'Hidden skirmishers open fire: 2 dmg to every enemy squad', fx: { strike: 2, sk: 'arrows' } },
+  hawkeye: { n: 'Sharp Eyes', cls: 'Rogue', t: 1, req: 'arrows', i: '<i class="ico ico-compass"></i>', d: 'Ranged units in army +40% ATK', fx: { ra: 1.4 } },
+  scout: { n: 'Pathfinder', cls: 'Rogue', t: 1, req: 'arrows', i: '<i class="ico ico-map"></i>', d: 'Passive: +1 world movement', p: { mv: 1 } },
+  poison: { n: 'Poisoned Volley', cls: 'Rogue', t: 2, req: 'hawkeye', i: '<i class="ico ico-potion"></i>', d: 'Opening volley: 3 dmg to every enemy squad', fx: { strike: 3, sk: 'arrows' } },
+  evasion: { n: 'Evasion', cls: 'Rogue', t: 2, req: 'scout', i: '<i class="ico ico-spy"></i>', d: 'Passive: army +12% DEF', p: { d: 1.12 } },
+  deadeye: { n: 'Assassin', cls: 'Rogue', t: 3, req: 'poison', i: '<i class="ico ico-skull"></i>', d: 'Passive: opening strikes +1 dmg; Blademasters +3 ATK/DEF', p: { sdmg: 1, fav: 3 } },
+  quickfoot: { n: 'Swift Company', cls: 'Rogue', t: 3, req: 'evasion', i: '<i class="ico ico-road"></i>', d: 'Passive: +1 world movement, army +5% ATK', p: { mv: 1, a: 1.05 } },
+
+  meteor: { n: 'Meteor', cls: 'Mage', t: 0, i: '<i class="ico ico-torch"></i>', d: 'Opening blast: 3 dmg to every enemy squad, 1 to Generals', fx: { strike: 3, gstrike: 1, sk: 'meteor' } },
+  bless: { n: 'Blessing', cls: 'Mage', t: 1, req: 'meteor', i: '<i class="ico ico-potion"></i>', d: 'Army +15% ATK & DEF', fx: { a: 1.15, d: 1.15 } },
+  manashield: { n: 'Mana Shield', cls: 'Mage', t: 1, req: 'meteor', i: '<i class="ico ico-rune"></i>', d: 'Passive: General +3 HP in battle', p: { ghp: 3 } },
+  lightning: { n: 'Chain Lightning', cls: 'Mage', t: 2, req: 'bless', i: '<i class="ico ico-alert"></i>', d: 'Bolts from the sky: 3 dmg to every enemy squad, 1 to Generals', fx: { strike: 3, gstrike: 1, sk: 'lightning' } },
+  lightheal: { n: 'Healing Light', cls: 'Mage', t: 2, req: 'manashield', i: '<i class="ico ico-heart"></i>', d: 'Heal every squad +4, army +10% DEF', fx: { heal: 4, d: 1.1 } },
+  archmage: { n: 'Archmage', cls: 'Mage', t: 3, req: 'lightning', i: '<i class="ico ico-star"></i>', d: 'Passive: spells deal +1 dmg', p: { sdmg: 1 } },
+  sage: { n: 'Sage', cls: 'Mage', t: 3, req: 'lightheal', i: '<i class="ico ico-book"></i>', d: 'Passive: army +10% ATK & DEF; Priests +3 ATK/DEF', p: { a: 1.1, d: 1.1, fav: 3 } },
 };
+const skillRoot = cls => Object.keys(ABIL).find(k => ABIL[k].cls === cls && ABIL[k].t === 0);
+function skillsOf(g) {
+  if (LEGACY_CLS[g.cls]) g.cls = LEGACY_CLS[g.cls];
+  if (!g.skills) g.skills = [skillRoot(g.cls)].filter(Boolean); // every General knows their class's first skill
+  return g.skills;
+}
+const skillPts = g => Math.floor(g.lvl / 2) - (skillsOf(g).length - 1);
+const canLearn = (g, k) => { const A = ABIL[k]; return !!A && A.cls === g.cls && !skillsOf(g).includes(k) && g.lvl >= SKILL_LV[A.t] && (!A.req || skillsOf(g).includes(A.req)) && skillPts(g) > 0; };
+function learnSkill(g, k) { if (!canLearn(g, k)) return false; skillsOf(g).push(k); return true; }
+function autoLearn(g) { for (let n = 0; n < 8 && skillPts(g) > 0; n++) { const c = Object.keys(ABIL).filter(k => canLearn(g, k)); if (!c.length) break; skillsOf(g).push(pick(c)); } }
+function passives(g) {
+  const P = { a: 1, d: 1, ra: 1, ghp: 0, size: 0, mv: 0, fav: 0, sdmg: 0, cmd: 0 }; if (!g || g.temp) return P;
+  for (const k of skillsOf(g)) { const p = ABIL[k] && ABIL[k].p; if (!p) continue; for (const q in p) if (q === 'a' || q === 'd' || q === 'ra') P[q] *= p[q]; else P[q] += p[q]; }
+  return P;
+}
+const genMaxHp = g => 10 + passives(g).ghp;
 const ABIL_CD = 3;
-const abilitiesOf = g => g.temp ? [] : Object.keys(ABIL).filter(k => ABIL[k].cls === g.cls && g.lvl >= ABIL[k].lv);
+const abilitiesOf = g => g.temp ? [] : skillsOf(g).filter(k => ABIL[k] && ABIL[k].fx);
 const abilReady = g => !g.cd || G.turn >= g.cd;
 
 // ============ ARMY BATTLE ENGINE (auto, Langrisser Mobile style) ============
@@ -1238,7 +1299,7 @@ const TERRAIN_DEF = { [T.FOREST]: .12, [T.HILLS]: .15, [T.SWAMP]: -.08, [T.SNOW]
 let UID = 1;
 function makeCastellan(city) {
   const st = clamp(1 + Math.floor(city.level / 2), 1, 4);
-  const g = makeGeneral(city.owner, st, pick(['Fighter', 'Lancer', 'Ranger']));
+  const g = makeGeneral(city.owner, st, pick(['Fighter', 'Lancer', 'Berserker']));
   g.temp = true; g.city = city.id; g.name = 'Castellan ' + g.name.split(' ')[0];
   g.lvl = city.level; g.atk += city.level; g.def += city.level + (city.walls ? 4 : 0) + (hasTech(city.owner, 'masonry') ? 2 : 0);
   const n = clamp(1 + city.level + (city.barracks ? 1 : 0), 1, 5), types = ['spear', 'infantry', 'archer'];
@@ -1268,7 +1329,7 @@ function formTarget(u, foes) {
 function makeBattle(opts) {
   const b = { units: [], round: 1, maxRounds: 4, siege: !!opts.siege, city: opts.city || null, player: opts.player, over: false, winner: -1, xp: {}, biome: opts.biome, sides: [opts.att, opts.def], abil: new Map(), ea: [1, 1] };
   for (const side of [0, 1]) for (const g of b.sides[side]) {
-    const gu = { uid: UID++, side, kind: 'gen', g, type: CLASSES[g.cls].type, hp: 10, fx: {} }; gu.cmdr = gu; b.units.push(gu);
+    const gu = { uid: UID++, side, kind: 'gen', g, type: CLASSES[g.cls].type, hp: genMaxHp(g), fx: {} }; gu.cmdr = gu; b.units.push(gu);
     ensureForm(g);
     for (const s of g.squads) if (s.hp > 0 && s.cell >= 0) b.units.push({ uid: UID++, side, kind: 'sq', g, s, type: s.type, hp: s.hp, cmdr: gu });
   }
@@ -1289,7 +1350,7 @@ function applyAbilities(b) {
     if (A.fx.strike) {
       const before = new Map(b.units.map(u => [u.uid, u.hp]));
       for (const e of b.units.filter(u => u.side !== gu.side && u.hp > 0)) {
-        if (e.kind === 'sq') e.hp = Math.max(0, e.hp - A.fx.strike);
+        if (e.kind === 'sq') e.hp = Math.max(0, e.hp - A.fx.strike - passives(gu.g).sdmg);
         else if (A.fx.gstrike) e.hp = Math.max(1, e.hp - A.fx.gstrike);
       }
       evs.push({ caster: gu, k, before });
@@ -1307,12 +1368,13 @@ function unitAD(b, u) {
   if (u.kind === 'gen') { a = u.g.atk; d = u.g.def; }
   else {
     a = troopAtk(f, u.type); d = troopDef(f, u.type);
-    if (CLASSES[u.g.cls].fav === u.type) { a += 2; d += 1; }
+    if (CLASSES[u.g.cls].fav === u.type) { const pf = passives(u.g).fav; a += 2 + pf; d += 1 + pf; }
     if (inCmd(u)) { const cb = cmdBonus(u.g); a += cb; d += cb; }
   }
   const d0 = d, fx = u.cmdr.fx || {};
-  a *= (fx.a || 1) * b.ea[u.side]; d *= fx.d || 1;
-  if (fx.ra && isRanged(u)) a *= fx.ra;
+  const P = passives(u.g);
+  a *= (fx.a || 1) * b.ea[u.side] * P.a; d *= (fx.d || 1) * P.d;
+  if (isRanged(u)) a *= (fx.ra || 1) * P.ra;
   if (u.side === 1) { d *= 1 + (TERRAIN_DEF[b.biome] || 0); if (b.siege) d *= 1 + (b.city && b.city.walls ? 0.35 : 0.2); }
   return { a, d, d0 };
 }
@@ -1656,10 +1718,10 @@ function buildScene(b, info, banners) {
     const casterArr = S.casterSide ? Rr : L;
     for (const d of S.deaths) {
       const so = d.so;
-      if (S.sk === 'meteor') S.booms.push({ x: so.hx + (R() - 0.5) * 8, y: so.hy, t: d.t, big: true });
+      if (S.sk === 'meteor' || S.sk === 'lightning') S.booms.push({ x: so.hx + (R() - 0.5) * 8, y: so.hy, t: d.t, big: true, bolt: S.sk === 'lightning' });
       else S.proj.push({ from: pick(casterArr.filter(c => c.ranged)) || casterArr[0], to: so, t0: d.t - 0.55, t1: d.t, kind: 'arrow', high: true });
     }
-    for (let k = 0; k < (S.sk === 'meteor' ? 4 : 22); k++) { const tgt = pick(S.casterSide ? L : Rr); const t = t0 + R() * (t1 - t0); if (S.sk === 'meteor') S.booms.push({ x: tgt.hx + (R() - 0.5) * 30, y: tgt.hy + (R() - 0.5) * 8, t, big: false }); else S.proj.push({ from: pick(casterArr), to: tgt, t0: t - 0.55, t1: t, kind: 'arrow', high: true, miss: true }); }
+    for (let k = 0; k < (S.sk === 'meteor' || S.sk === 'lightning' ? 4 : 22); k++) { const tgt = pick(S.casterSide ? L : Rr); const t = t0 + R() * (t1 - t0); if (S.sk === 'meteor' || S.sk === 'lightning') S.booms.push({ x: tgt.hx + (R() - 0.5) * 30, y: tgt.hy + (R() - 0.5) * 8, t, big: false, bolt: S.sk === 'lightning' }); else S.proj.push({ from: pick(casterArr), to: tgt, t0: t - 0.55, t1: t, kind: 'arrow', high: true, miss: true }); }
   } else {
     // ranged soldiers pick a live target each time they shoot (see stepScene)
     for (const so of S.soldiers) if (so.ranged && !so.gen) so.nextShot = 0.45 + so.off * 0.8;
@@ -1783,12 +1845,12 @@ function stepScene(S, t, dt) {
   const live = s => !s.dead && !(s.flee && t > s.flee), foeOk = e => !(S.duel && e.gen);
   for (const d of S.deaths) if (!d.done && t >= d.t) {
     d.done = true; const so = d.so; so.dead = true; so.deadT = t; so.flashT = t; S.done[d.sd]++;
-    const dir = so.side ? 1 : -1, boom = S.sk === 'meteor';
+    const dir = so.side ? 1 : -1, boom = S.sk === 'meteor' || S.sk === 'lightning';
     knock(so, dir, 70 + R() * 80 + (boom ? 60 : 0), (boom ? 120 : 45) + R() * 70);
-    burst(S, so.x, so.y - 9, boom ? 10 : 7, boom ? FIREC : HITC, 75, 30);
+    burst(S, so.x, so.y - 9, boom ? 10 : 7, S.sk === 'lightning' ? CLANGC : boom ? FIREC : HITC, 75, 30);
   }
   for (const gf of (S.genFall || [])) if (!gf.done && t >= gf.t) { gf.done = true; for (const so of S.soldiers) if (so.side === gf.sd && !so.dead && !so.gen) so.flee = t + R() * 0.3; }
-  for (const m of S.booms) if (!m.done && t >= m.t) { m.done = true; impact(S, m.big ? 0.03 : 0, m.big ? 3.5 : 1.5); burst(S, m.x, m.y - 3, m.big ? 12 : 6, FIREC, 110, 50); }
+  for (const m of S.booms) if (!m.done && t >= m.t) { m.done = true; impact(S, m.big ? 0.03 : 0, m.big ? 3.5 : 1.5); burst(S, m.x, m.y - 3, m.big ? 12 : 6, m.bolt ? CLANGC : FIREC, 110, 50); if (m.bolt && m.big) S.flashA = Math.max(S.flashA, 0.3); }
   for (const h of (S.heals || [])) if (!h.done && t >= h.t) {
     h.done = true; const tg = (S.byU.get(h.u.uid) || []).filter(s => !s.dead && !(s.flee && t > s.flee));
     const so = pick(tg); if (so) popup(S, so.x, so.y - 28, '+' + h.n, 'heal');
@@ -1899,6 +1961,14 @@ function drawScene(cx, S, t, dt) {
   }
   for (const m of S.booms) {
     const k = t - m.t;
+    if (m.bolt) { // a jagged bolt from the sky, then a crackle on the ground
+      if (k > -0.06 && k < 0.16) {
+        const r = mulberry32((m.x * 7 + m.y * 13) | 0); let x = m.x + (r() - 0.5) * 30, y = 0; cx.globalAlpha = k < 0.06 ? 1 : 0.5;
+        while (y < m.y - 2) { const ny = Math.min(m.y - 2, y + 6 + r() * 10), nx = m.x + (x - m.x) * 0.7 + (r() - 0.5) * 10; cx.strokeStyle = '#8ac8ff'; cx.lineWidth = 3; cx.beginPath(); cx.moveTo(x, y); cx.lineTo(nx, ny); cx.stroke(); cx.strokeStyle = '#ffffff'; cx.lineWidth = 1; cx.beginPath(); cx.moveTo(x, y); cx.lineTo(nx, ny); cx.stroke(); x = nx; y = ny; }
+        cx.globalAlpha = 1;
+      }
+      continue;
+    }
     if (k > -0.5 && k < 0) { const x = m.x - k * 60, y = m.y + k * 260; cx.fillStyle = '#ff9a30'; cx.fillRect(Math.round(x) - 2, Math.round(y) - 2, 5, 5); cx.fillStyle = '#fff2b0'; cx.fillRect(Math.round(x) - 1, Math.round(y) - 1, 3, 3); cx.fillStyle = 'rgba(255,120,40,.5)'; cx.fillRect(Math.round(x) + 2, Math.round(y) - 7, 3, 6); }
     else if (k >= 0 && k < 0.45) { const r = (m.big ? 14 : 9) * (0.4 + k * 2); cx.globalAlpha = 1 - k / 0.45; cx.fillStyle = '#ffd060'; cx.beginPath(); cx.ellipse(m.x, m.y - 2, r, r * 0.55, 0, 0, 6.29); cx.fill(); cx.fillStyle = '#fff8d0'; cx.beginPath(); cx.ellipse(m.x, m.y - 2, r * 0.5, r * 0.3, 0, 0, 6.29); cx.fill(); cx.globalAlpha = 1; }
   }
@@ -1918,7 +1988,7 @@ function drawScene(cx, S, t, dt) {
   }
   cx.globalAlpha = 1; S.parts = S.parts.filter(p => p.t < p.life);
   cx.restore();
-  if (S.mode === 'skill' && S.sk === 'meteor' && S.booms.some(m => Math.abs(t - m.t) < 0.04 && m.big)) { cx.fillStyle = 'rgba(255,200,120,.25)'; cx.fillRect(0, 0, SW, SH); }
+  if (S.mode === 'skill' && S.sk === 'meteor' && S.booms.some(m => Math.abs(t - m.t) < 0.04 && m.big && !m.bolt)) { cx.fillStyle = 'rgba(255,200,120,.25)'; cx.fillRect(0, 0, SW, SH); }
   if (S.flashA > 0) { cx.fillStyle = `rgba(255,250,235,${S.flashA.toFixed(2)})`; cx.fillRect(0, 0, SW, SH); S.flashA = Math.max(0, S.flashA - dt * 2.5); }
   // floating combat text lives in the DOM so it stays crisp at any screen size
   if (S.pops.length) {
@@ -1936,7 +2006,7 @@ function drawScene(cx, S, t, dt) {
     if (!el._k) {
       // built once per scene: portrait, name, then the General's HP bar stacked over the troops bar
       const tmax = Math.max(1, (sd ? S.uR : S.uL).filter(u => u.kind === 'sq').reduce((a, u) => a + sqMax(u.g), 0));
-      el._max = [10, tmax]; el.style.borderColor = pal.main;
+      el._max = [genMaxHp(g.g), tmax]; el.style.borderColor = pal.main;
       el.innerHTML = `<div class="sport"></div><div class="sinfo"><div class="sname"><span style="color:${pal.dark}">${g.g.name}</span><span class="sub">${g.g.cls} Lv${g.g.lvl}</span></div>
         <div class="shp gen"><i class="lag"></i><i class="fill"></i><span><i class="ico ico-helmet"></i><b></b></span></div>
         <div class="shp trp"><i class="lag"></i><i class="fill"></i><span><i class="ico ico-people"></i><b></b></span></div></div>`;
@@ -2001,7 +2071,7 @@ function newGame(world, kname, o = {}) {
   G.gens = []; GID = 1;
   for (let f = 0; f < K; f++) {
     const c = capitalOf(f);
-    const g = makeGeneral(f, 3, f === 0 ? 'Fighter' : pick(['Fighter', 'Lancer', 'Knight'])); g.squads = [{ type: 'infantry', hp: sqMax(g) }, { type: 'spear', hp: sqMax(g) }];
+    const g = makeGeneral(f, 3, f === 0 ? (CLASSES[o.cls] ? o.cls : 'Fighter') : pick(Object.keys(CLASSES))); g.squads = [{ type: 'infantry', hp: sqMax(g) }, { type: 'spear', hp: sqMax(g) }];
     placeGen(g, c.x, c.y); G.gens.push(g); g.mp = worldMove(g);
   }
   cityCache.clear(); portCache.clear(); genReset(); recolorCache.clear();
@@ -2363,7 +2433,8 @@ function loadGame() {
   try {
     const s = localStorage.getItem(SAVE_KEY); if (!s) return false; const o = JSON.parse(s);
     G = o; GID = o.GID || 1000; G.pals = G.factions.map(f => factionPal(f.col));
-    for (const g of G.gens) { g.ax = g.x; g.ay = g.y; }
+    for (const g of G.gens) { g.ax = g.x; g.ay = g.y; skillsOf(g); }
+    for (const F of G.factions) for (const g of (F.scout || [])) skillsOf(g);
     cityCache.clear(); portCache.clear(); genReset(); recolorCache.clear(); computeTerritory(); renderWorldTerrain(); return true;
   } catch (e) { return false; }
 }
@@ -2528,14 +2599,28 @@ function renderPanel() {
   }
   P.style.display = 'none';
 }
+// class skill tree: four tiers, learned skills in gold, learnable ones are buttons (own Generals with skill points)
+function skillTreeHTML(g, own) {
+  const ks = Object.keys(ABIL).filter(k => ABIL[k].cls === g.cls), have = skillsOf(g), pts = skillPts(g);
+  let h = `<h4>${g.cls} skills <span class="sub">(${CLASS_WPN[g.cls] || ''})</span>${own ? ` <span class="sp ${pts > 0 ? 'on' : ''}"><i class="ico ico-star"></i> ${Math.max(0, pts)} point${pts === 1 ? '' : 's'}</span>` : ''}</h4><div class="stree">`;
+  for (let t = 0; t < SKILL_LV.length; t++) {
+    h += `<div class="stier"><span class="slv">Lv ${SKILL_LV[t]}</span>`;
+    for (const k of ks.filter(k => ABIL[k].t === t)) {
+      const A = ABIL[k], got = have.includes(k), can = own && canLearn(g, k), st = got ? 'got' : can ? 'can' : 'lock';
+      const why = got ? 'Learned' : g.lvl < SKILL_LV[t] ? `Needs Lv ${SKILL_LV[t]}` : A.req && !have.includes(A.req) ? `Needs ${ABIL[A.req].n}` : pts <= 0 ? 'No skill points' : 'Click to learn';
+      h += `<button class="snode ${st}" ${can ? `data-learn="${k}"` : 'disabled'} title="${A.n}: ${A.d} (${why})"><span class="si">${A.i}</span><span class="sn">${A.n}</span><span class="sd">${A.fx ? 'Active · ' : ''}${A.d.replace(/^Passive: /, '')}</span></button>`;
+    }
+    h += `</div>`;
+  }
+  return h + `</div>` + (abilReady(g) ? '' : `<div class="sub" style="color:var(--red)">Active skills recharging until turn ${g.cd}</div>`);
+}
 function armyPanel(g) {
   const P = $('#panel'); P.style.display = 'block';
   const own = g.faction === 0, F = G.factions[g.faction];
   const xpP = Math.round(g.xp / xpNeed(g.lvl) * 100);
   let h = `<div class="ph"><span id="pport"></span><div><div class="nm">${g.name}</div><div><span class="stars">${'★'.repeat(g.stars)}</span> ${g.cls} · Lv ${g.lvl}</div><div class="sub"><span class="sw" style="background:${F.col}"></span>${F.name}</div><div class="xpbar" style="width:120px;margin-top:3px"><i style="width:${xpP}%"></i></div></div></div>`;
   h += genStatsHTML(g);
-  const abl = Object.keys(ABIL).filter(k => ABIL[k].cls === g.cls);
-  h += `<h4>Abilities</h4>` + abl.map(k => `<div class="sub">${ABIL[k].i} <b style="color:${g.lvl >= ABIL[k].lv ? 'var(--text)' : '#777'}">${ABIL[k].n}</b>${g.lvl >= ABIL[k].lv ? '' : ' (Lv' + ABIL[k].lv + ')'} — ${ABIL[k].d}</div>`).join('') + (abilReady(g) ? '' : `<div class="sub" style="color:var(--red)">Recharging until turn ${g.cd}</div>`);
+  h += skillTreeHTML(g, own);
   h += `<h4>Squads ${g.squads.length}/${maxSquads(g)}</h4>` + (g.squads.length ? g.squads.map((s, k) => sqRow(s, k, g, own)).join('') : '<div class="sub">No squads — this general fights alone!</div>');
   if (own) {
     h += `<div class="sub" style="margin-top:6px">Movement left: <b>${g.mp}</b>/${worldMove(g)}${UI.targets.length ? ' · <span style="color:var(--red)">Red tiles can be attacked</span>' : ''}</div>`;
@@ -2549,6 +2634,7 @@ function armyPanel(g) {
   }
   const c = cityAt(g.x, g.y); if (c) h += `<div class="row"><button class="btn sm" id="pCity">View ${c.name}</button></div>`;
   P.innerHTML = h; $('#pport').appendChild(portraitImg(g, 64));
+  P.querySelectorAll('[data-learn]').forEach(b => b.onclick = () => { if (learnSkill(g, b.dataset.learn)) { toast(`${g.name} learned <b>${ABIL[b.dataset.learn].n}</b>.`); saveGame(); renderHUD(); armyPanel(g); } });
   const rb = $('#pRefill'); if (rb) rb.onclick = () => { const rc = refillCost(g); if (F.gold >= rc) { F.gold -= rc; g.squads.forEach(s => s.hp = sqMax(g)); toast('Squads replenished.'); afterWorldChange(); } };
   P.querySelectorAll('[data-train]').forEach(b => b.onclick = () => { const t = b.dataset.train, cst = trainCost(0, t); if (F.gold < cst || g.squads.length >= maxSquads(g)) return; F.gold -= cst; g.squads.push({ type: t, hp: sqMax(g) }); afterWorldChange(); });
   P.querySelectorAll('[data-dis]').forEach(b => b.onclick = () => { g.squads.splice(+b.dataset.dis, 1); afterWorldChange(); });
@@ -2655,10 +2741,10 @@ $('#bEnd').onclick = () => endTurn();
 // ============ MAIN MENU / NEW GAME ============
 // The menu needs no world, so it appears at once; a world is generated (cheaply, no terrain art) only for the
 // minimap preview, and the full terrain is painted when the game actually starts.
-const NG = { size: 'm', shape: 'continent', enemies: '3', towns: '2', gold: 'std', crisis: '0', seed: 0 };
+const NG = { cls: 'Fighter', size: 'm', shape: 'continent', enemies: '3', towns: '2', gold: 'std', crisis: '0', seed: 0 };
 try { Object.assign(NG, JSON.parse(localStorage.getItem('cc_newgame') || '{}')); } catch (e) { }
 let previewWorld = null, previewKey = '';
-const ngOpts = () => ({ size: NG.size, shape: NG.shape, kingdoms: 1 + +NG.enemies, towns: +NG.towns, gold: NG.gold, crisis: NG.crisis === '1' });
+const ngOpts = () => ({ cls: CLASSES[NG.cls] ? NG.cls : 'Fighter', size: NG.size, shape: NG.shape, kingdoms: 1 + +NG.enemies, towns: +NG.towns, gold: NG.gold, crisis: NG.crisis === '1' });
 const TERR_COL = ['#1c3e6e', '#2f67a8', '#e2cf8e', '#6fb14a', '#9cc35a', '#3f7d36', '#8a7a52', '#7c7670', '#e8eef4', '#dcc076', '#5e7a4a'];
 function titleScreen(which) {
   for (const [id, k] of [['#tMenu', 'menu'], ['#tSetup', 'setup'], ['#tPanel', 'panel']]) $(id).style.display = which === k ? '' : 'none';
@@ -2710,6 +2796,7 @@ function helpPanel() {
    <p><b>Goal:</b> conquer every rival kingdom. You lose if your last city falls.</p>
    <p><b>Armies:</b> select a General, move them across the map and attack red-highlighted enemies or towns. Each General commands a few squads.</p>
    <p><b>Battles:</b> pick a General ability, then watch the clash. If a General falls, their troops flee.</p>
+   <p><b>Generals:</b> five classes, set by their weapon: Fighter (sword), Lancer (spear), Berserker (axe), Rogue (dagger) and Mage (wand). Every 2 levels a General earns a skill point to spend in their class skill tree (open the General's panel).</p>
    <p><b>Matchups:</b> Infantry beat Spearmen, Spearmen beat Cavalry, Cavalry beat Infantry. Archers beat Priests.</p>
    <p><b>Growth:</b> cities and territory earn gold for squads and upgrades. Kingdom levels grant Tech Points and raise your General cap; hire Generals at the Tavern.</p>
    <div class="row tbtns"><button class="btn" id="pBack"><i class="ico ico-left"></i> Back</button></div>`;
