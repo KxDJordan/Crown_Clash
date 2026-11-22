@@ -122,6 +122,22 @@ th{color:var(--dim);font-weight:400;font-size:15px;letter-spacing:1px;text-trans
 .spop.ko{color:#ff6a4a;font-size:clamp(26px,5.5vw,64px);animation:sko 1.4s ease-out forwards}
 @keyframes spop{0%{transform:translate(-50%,-50%) scale(1.8);opacity:0}15%{transform:translate(-50%,-100%) scale(1);opacity:1}70%{opacity:1}100%{transform:translate(-50%,-230%);opacity:0}}
 @keyframes sko{0%{transform:translate(-50%,-50%) scale(2.6);opacity:0}12%{transform:translate(-50%,-50%) scale(1);opacity:1}80%{opacity:1}100%{transform:translate(-50%,-70%);opacity:0}}
+.sbar{justify-content:flex-start;align-items:stretch;padding:4px}
+.sport{flex:none;border:2px solid #0c0e16;line-height:0;background:#0c0e16}.sport canvas{width:clamp(36px,5.6vw,64px)!important;height:clamp(36px,5.6vw,64px)!important;image-rendering:pixelated}
+#sbR .sport canvas{transform:scaleX(-1)}
+.sinfo{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:space-between;gap:3px}
+.sname{display:flex;gap:8px;align-items:baseline;white-space:nowrap;overflow:hidden;line-height:1}.sname>span:first-child{overflow:hidden;text-overflow:ellipsis}
+#sbR .sname{flex-direction:row-reverse}
+.shp{position:relative;height:clamp(11px,1.7vw,20px);background:#0c0e16;border:2px solid #0c0e16;overflow:hidden}
+.shp.trp{height:clamp(8px,1.2vw,14px)}
+.shp .fill,.shp .lag{position:absolute;top:0;bottom:0;left:0;font-style:normal}
+#sbR .shp .fill,#sbR .shp .lag{left:auto;right:0}
+.shp .lag{background:#fff2c0;transition:width .6s .25s ease-in}
+.shp .fill{transition:width .12s}
+.shp.gen .fill{background:linear-gradient(#ffe07a 0 30%,#e0a020 30%)}.shp.gen.low .fill{background:linear-gradient(#ff9a7a 0 30%,#d83a2a 30%)}
+.shp.trp .fill{background:linear-gradient(#9ae07a 0 30%,#3fa040 30%)}
+.shp span{position:absolute;inset:0;display:flex;align-items:center;gap:4px;padding:0 5px;font-size:clamp(9px,1.3vw,15px);line-height:1;color:#fff;text-shadow:1px 1px 0 #0c0e16,-1px -1px 0 #0c0e16}
+#sbR .shp span{justify-content:flex-end}.shp span .ico{width:1em;height:1em}
 .sbar.hit{animation:shit .3s}@keyframes shit{0%,60%{background:#7a2020ee;transform:translateX(3px)}30%{transform:translateX(-3px)}}
 #sban .sb{position:absolute;font-family:var(--fd);font-size:clamp(14px,2.6vw,28px);color:var(--gold);text-shadow:3px 3px 0 #0c0e16;background:#1b2030cc;border:2px solid #0c0e16;padding:6px 18px;animation:tin .3s}
 #sban .l{left:4%}#sban .r{right:4%}
@@ -1774,10 +1790,22 @@ function drawScene(cx, S, t, dt) {
     const troops = Math.max(0, S.troops0[sd] - Math.round(S.lost[sd] * prog));
     const ghp = S.duel ? Math.max(0, Math.round(S.gShow[sd])) : Math.round(lerp(gh[0], gh[1], clamp((t - (S.tc || 0.9)) / 1.4, 0, 1)));
     const key = troops + ':' + ghp; if (el._k === key) return;
-    if (el._k && +el._k.split(':')[1] > ghp) { el.classList.remove('hit'); void el.offsetWidth; el.classList.add('hit'); }
+    if (!el._k) {
+      // built once per scene: portrait, name, then the General's HP bar stacked over the troops bar
+      const tmax = Math.max(1, (sd ? S.uR : S.uL).filter(u => u.kind === 'sq').length * 10);
+      el._max = [10, tmax]; el.style.borderColor = pal.main;
+      el.innerHTML = `<div class="sport"></div><div class="sinfo"><div class="sname"><span style="color:${pal.light}">${g.g.name}</span><span class="sub">${g.g.cls} Lv${g.g.lvl}</span></div>
+        <div class="shp gen"><i class="lag"></i><i class="fill"></i><span><i class="ico ico-helmet"></i><b></b></span></div>
+        <div class="shp trp"><i class="lag"></i><i class="fill"></i><span><i class="ico ico-people"></i><b></b></span></div></div>`;
+      el.querySelector('.sport').appendChild(portraitImg(g.g, 48));
+      el._bars = [...el.querySelectorAll('.shp')];
+    } else if (+el._k.split(':')[1] > ghp) { el.classList.remove('hit'); void el.offsetWidth; el.classList.add('hit'); }
     el._k = key;
-    el.innerHTML = `<div style="min-width:0"><div style="color:${pal.light};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${g.g.name}</div><div class="sub">${g.g.cls} Lv${g.g.lvl}</div></div><div class="big" style="white-space:nowrap"><span style="color:${ghp <= 3 ? '#ffb070' : '#fff'}"><i class="ico ico-helmet"></i>${ghp}</span> <span style="font-size:.7em"><i class="ico ico-people"></i>${troops}</span></div>`;
-    el.style.borderColor = pal.main;
+    [ghp, troops].forEach((v, i) => {
+      const bx = el._bars[i], pc = clamp(v / el._max[i], 0, 1) * 100 + '%';
+      bx.querySelector('.fill').style.width = pc; bx.querySelector('.lag').style.width = pc; bx.querySelector('b').textContent = v;
+      if (i === 0) bx.classList.toggle('low', v <= 3);
+    });
   };
   bar($('#sbL'), 0); bar($('#sbR'), 1);
   const bn = $('#sban');
