@@ -1305,7 +1305,11 @@ const xpNeed = l => 40 + l * 30;
 const RANKS = [{ n: 'Recruits', xp: 0 }, { n: 'Veterans', xp: 12 }, { n: 'Elite', xp: 30 }, { n: 'Legendary', xp: 60 }];
 const sqRank = s => { let r = 0; for (let k = 1; k < RANKS.length; k++) if ((s && s.xp || 0) >= RANKS[k].xp) r = k; return r; };
 const rankBadge = s => { const r = sqRank(s); return r ? `<span class="rk r${r}" title="${RANKS[r].n} (+${r * 2} ATK/DEF)">${'▲'.repeat(r)}</span>` : ''; };
-const sqMax = g => clamp(10 + Math.floor(Math.max(0, g.ldr - 20) / 5), 10, 24) + passives(g).size;
+// stars: each star above one gives the commander's squads +1 ATK and DEF (1★ +0 ... 5★ +4)
+let STAR_STEP = 1;
+const starBonus = g => Math.max(0, (g.stars || 1) - 1) * STAR_STEP;
+const MILITIA = 0.9, MILITIA_SQ = 8; // battalion troops fight at 90% and their squads hold at most 8 soldiers
+const sqMax = g => g.captain ? MILITIA_SQ : clamp(10 + Math.floor(Math.max(0, g.ldr - 20) / 5), 10, 24) + passives(g).size;
 function troopAtk(f, type) { let a = TROOPS[type].atk; if (hasTech(f, 'forge')) a += 2; if (hasTech(f, 'steel')) a += 3; if (type === 'archer' && hasTech(f, 'longbow')) a += 3; if (type === 'cavalry' && hasTech(f, 'lances')) a += 3; return a; }
 function troopDef(f, type) { let d = TROOPS[type].def; if (hasTech(f, 'shields')) d += 2; if (hasTech(f, 'plate')) d += 3; if (type === 'spear' && hasTech(f, 'pikes')) d += 3; return d; }
 const troopUnlocked = (f, type) => !TROOPS[type].req || hasTech(f, TROOPS[type].req);
@@ -1398,7 +1402,7 @@ function passives(g) {
   for (const k of skillsOf(g)) { const p = ABIL[k] && ABIL[k].p; if (!p) continue; for (const q in p) if (q === 'a' || q === 'd' || q === 'ra') P[q] *= p[q]; else P[q] += p[q]; }
   return P;
 }
-const genMaxHp = g => 10 + passives(g).ghp;
+const genMaxHp = g => g.captain ? 9 : 10 + passives(g).ghp;
 const ABIL_CD = 3;
 const abilitiesOf = g => g.temp || g.captain ? [] : skillsOf(g).filter(k => ABIL[k] && ABIL[k].fx);
 // every active skill has its own cooldown (turns) and its own opening scene in battle
@@ -1491,7 +1495,9 @@ function unitAD(b, u) {
     a = troopAtk(f, u.type); d = troopDef(f, u.type);
     if (CLASSES[u.g.cls].fav === u.type) { const pf = passives(u.g).fav; a += 2 + pf; d += 1 + pf; }
     const rk = sqRank(u.s); a += rk * 2; d += rk * 2;
+    const sb = starBonus(u.g); a += sb; d += sb; // a commander's stars make their troops better
     if (inCmd(u)) { const cb = cmdBonus(u.g); a += cb; d += cb; }
+    if (u.g.captain) { a *= MILITIA; d *= MILITIA; } // battalions are militia, not a hero's trained squads
   }
   const d0 = d, fx = u.cmdr.fx || {};
   const P = passives(u.g);
@@ -2424,7 +2430,7 @@ function refillFromReserve(g) {
 }
 const refillNeed = g => { const F = G.factions[g.faction]; return g.squads.reduce((a, s) => a + Math.min(Math.max(0, sqMax(g) - s.hp), F.reserve[s.type] || 0), 0); };
 // battalions: soldiers raised straight from a town's people under a captain (not a General: no skills or levels)
-const BATTALION = { gold: 80, ore: 10, pop: 24 };
+const BATTALION = { gold: 80, ore: 10, pop: 2 * MILITIA_SQ };
 const battalions = f => G.gens.filter(g => g.faction === f && g.captain && g.status === 'field').length;
 const genCount = f => fGens(f).filter(g => !g.captain && g.status !== 'captive').length;
 function canRaiseBattalion(f, c) { const F = G.factions[f]; return c.owner === f && F.gold >= BATTALION.gold && F.ore >= BATTALION.ore && c.pop >= BATTALION.pop && battalions(f) < fCities(f).length; }
@@ -2432,7 +2438,7 @@ function raiseBattalion(f, c, type) {
   if (!canRaiseBattalion(f, c)) return null; const F = G.factions[f];
   const g = makeGeneral(f, 1, 'Fighter'); g.captain = true; g.name = 'Captain ' + g.name.split(' ')[0];
   const t2 = troopUnlocked(f, type) ? type : 'infantry';
-  g.squads = [{ type: t2, hp: 12 }, { type: t2 === 'spear' ? 'infantry' : 'spear', hp: 12 }];
+  g.squads = [{ type: t2, hp: MILITIA_SQ }, { type: t2 === 'spear' ? 'infantry' : 'spear', hp: MILITIA_SQ }];
   if (!placeGen(g, c.x, c.y)) { GID--; return null; }
   F.gold -= BATTALION.gold; F.ore -= BATTALION.ore; c.pop -= BATTALION.pop; G.gens.push(g); g.mp = 0; return g;
 }
@@ -3107,7 +3113,7 @@ function sqRow(s, idx, g, own) {
 function genStatsHTML(g) {
   const C = CLASSES[g.cls];
   return `<div class="stats"><div>ATK<b>${g.atk}</b></div><div>DEF<b>${g.def}</b></div><div>LDR<b>${g.ldr}</b></div><div>CMD<b>${g.cmd}</b></div></div>
-  <div class="sub">Commands <b>${maxSquads(g)}</b> squads · Command aura <b>+${cmdBonus(g)}</b> ATK/DEF in range <b>${cmdRange(g)}</b> · Moves ${worldMove(g)}/turn${C.fav ? ' · Favors ' + TROOPS[C.fav].n : ''}${C.rng > 1 ? ' · Ranged' : ''}</div>`;
+  <div class="sub">${'★'.repeat(g.stars)} troops <b>+${starBonus(g)}</b> ATK/DEF${g.captain ? ` · militia ${Math.round(MILITIA * 100)}%` : ''} · Commands <b>${maxSquads(g)}</b> squads · Command aura <b>+${cmdBonus(g)}</b> ATK/DEF in range <b>${cmdRange(g)}</b> · Moves ${worldMove(g)}/turn${C.fav ? ' · Favors ' + TROOPS[C.fav].n : ''}${C.rng > 1 ? ' · Ranged' : ''}</div>`;
 }
 function renderPanel() {
   const P = $('#panel'); if (!G) return;
@@ -3142,7 +3148,7 @@ function armyPanel(g) {
   const xpP = Math.round(g.xp / xpNeed(g.lvl) * 100);
   let h = `<div class="ph"><span id="pport"></span><div><div class="nm">${g.name}</div><div><span class="stars">${'★'.repeat(g.stars)}</span> ${g.cls} · Lv ${g.lvl}</div><div class="sub"><span class="sw" style="background:${F.col}"></span>${F.name}</div><div class="xpbar" style="width:120px;margin-top:3px"><i style="width:${xpP}%"></i></div></div></div>`;
   h += genStatsHTML(g);
-  h += g.captain ? '<div class="sub">A captain leading a battalion: no skills or levels, and not counted against your General cap.</div>' : skillTreeHTML(g, own);
+  h += g.captain ? `<div class="sub">A captain leading a militia battalion: squads of at most ${MILITIA_SQ}, troops fight at ${Math.round(MILITIA * 100)}% strength, 9 HP in battle; no skills or levels, and not counted against your General cap.</div>` : skillTreeHTML(g, own);
   h += `<h4>Squads ${g.squads.length}/${maxSquads(g)}</h4>` + (g.squads.length ? g.squads.map((s, k) => sqRow(s, k, g, own)).join('') : '<div class="sub">No squads — this general fights alone!</div>');
   if (own) {
     h += `<div class="sub" style="margin-top:6px">Movement left: <b>${g.mp}</b>/${worldMove(g)}${UI.targets.length ? ' · <span style="color:var(--red)">Red tiles can be attacked</span>' : ''}</div>`;
@@ -3176,7 +3182,7 @@ function cityPanel(c) {
       const k5 = recruitCost(0, t, 5);
       return `<div class="sq"><i class="ico ico-${UNIT_ICO[t]}"></i><span class="t">${TROOPS[t].n} <span class="sub">(${F.reserve[t] || 0})</span></span><span class="sub" style="flex:1">${k5.gold}g · ${k5.ore} ore per 5</span><button class="btn sm" data-rec="${t}:5" ${canRecruit(0, c, t, 5) ? '' : 'disabled'}>+5</button><button class="btn sm" data-rec="${t}:10" ${canRecruit(0, c, t, 10) ? '' : 'disabled'}>+10</button></div>`;
     }).join('');
-    h += `<div class="row"><button class="btn" id="pBat" ${canRaiseBattalion(0, c) ? '' : 'disabled'}><i class="ico ico-flag"></i> Raise battalion (${BATTALION.gold}g · ${BATTALION.ore} ore · ${BATTALION.pop} people)</button></div><div class="sub">A captain leads 2 squads raised straight from this town's people — no General needed. Battalions ${battalions(0)}/${fCities(0).length}.</div>`;
+    h += `<div class="row"><button class="btn" id="pBat" ${canRaiseBattalion(0, c) ? '' : 'disabled'}><i class="ico ico-flag"></i> Raise battalion (${BATTALION.gold}g · ${BATTALION.ore} ore · ${BATTALION.pop} people)</button></div><div class="sub">A 1★ captain leads 2 militia squads of ${MILITIA_SQ}, weaker than a General's troops, raised straight from this town's people — no General needed. Battalions ${battalions(0)}/${fCities(0).length}.</div>`;
   }
   if (!own) h += `<div class="sub" style="margin-top:6px">Defended by a Lv ${clamp(Math.round(1.25 * 2 ** c.level), 2, 30)} castellan with ${clamp(1 + c.level + (c.barracks ? 1 : 0), 1, 6)} squads at ${Math.round(c.garrison * 100)}% strength. Select an army and attack from an adjacent tile.</div>`;
   const a = armyAt(c.x, c.y); if (a) h += `<div class="row"><button class="btn sm" id="pArmy">View ${a.name}</button></div>`;
