@@ -366,11 +366,12 @@ const TROOPS = {
   spear: { n: 'Spearmen', atk: 15, def: 16, mov: 5, rng: 1, cost: 65, refill: 6, req: null, d: 'Shield-and-spear templars. Strong vs Cavalry & Armored Warriors.' },
   armored: { n: 'Armored Warriors', atk: 17, def: 20, mov: 4, rng: 1, cost: 85, refill: 8, req: 'shields', d: 'Axemen in heavy plate. Strong vs Infantry & Blademasters.' },
   blade: { n: 'Blademasters', atk: 21, def: 11, mov: 5, rng: 1, cost: 90, refill: 9, req: 'forge', d: 'Swift duelists. Strong vs Spearmen & Archers, but fragile.' },
-  priest: { n: 'Priests', atk: 9, def: 10, mov: 5, rng: 2, cost: 80, refill: 8, req: 'faith', d: 'Range 2. After every clash they heal the most wounded squad in their army.' },
-  archer: { n: 'Archers', atk: 15, def: 10, mov: 5, rng: 2, cost: 75, refill: 7, req: 'archery', d: 'Range 2, no melee counter vs volleys.' },
-  cavalry: { n: 'Cavalry', atk: 18, def: 12, mov: 7, rng: 1, cost: 95, refill: 9, req: 'horse', d: 'Fast shock troops. Strong vs Infantry & Archers.' },
+  priest: { n: 'Priests', atk: 9, def: 10, mov: 5, rng: 2, cost: 80, refill: 8, req: 'faith', d: 'Range 2. Heal the most wounded squad in their army after every clash. Strong vs Monsters.' },
+  archer: { n: 'Archers', atk: 15, def: 10, mov: 5, rng: 2, cost: 75, refill: 7, req: 'archery', d: 'Range 2, no melee counter vs volleys. Strong vs Priests.' },
+  cavalry: { n: 'Cavalry', atk: 18, def: 12, mov: 7, rng: 1, cost: 95, refill: 9, req: 'horse', d: 'Fast shock troops. Strong vs Infantry.' },
 };
-const BEATS = { infantry: ['spear'], spear: ['cavalry', 'armored'], cavalry: ['infantry', 'archer', 'priest'], archer: [], mage: ['armored'], armored: ['infantry', 'blade'], blade: ['spear', 'archer'], priest: [] };
+// matchups: infantry > spearmen > cavalry > infantry; archers > priests > monsters (monsters arrive later)
+const BEATS = { infantry: ['spear'], spear: ['cavalry', 'armored'], cavalry: ['infantry'], archer: ['priest'], priest: ['monster'], monster: [], mage: ['armored'], armored: ['infantry', 'blade'], blade: ['spear', 'archer'] };
 const CLASSES = {
   Fighter: { type: 'infantry', atk: 23, def: 19, mov: 5, wmov: 4, fav: 'infantry', rng: 1, g: [2, 2, 2, 1] },
   Lancer: { type: 'spear', atk: 21, def: 22, mov: 5, wmov: 4, fav: 'spear', rng: 1, g: [1, 2, 2, 1] },
