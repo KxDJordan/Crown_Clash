@@ -113,7 +113,7 @@ th{color:var(--dim);font-weight:400;font-size:15px;letter-spacing:1px;text-trans
 .sbar .big{font-size:clamp(20px,3.4vw,38px);line-height:1}
 #sbL{left:2%}#sbR{right:2%;flex-direction:row-reverse;text-align:right}
 #sround{position:absolute;bottom:3%;left:2%;font-size:clamp(12px,1.6vw,18px);color:var(--text);background:#1b2030dd;border:2px solid #0c0e16;padding:3px 10px 2px}
-#sskipall{position:absolute;bottom:calc(3% + 34px);right:2%}
+#sskipall{position:absolute;bottom:calc(3% + 46px);right:2%}
 #sskip{position:absolute;bottom:3%;right:2%;font-size:clamp(12px,1.5vw,16px);color:#f4eedccc;background:#1b203099;padding:3px 10px 2px}
 #sban{position:absolute;top:22%;left:0;right:0;pointer-events:none}
 #spops{position:absolute;inset:0;pointer-events:none;overflow:hidden}
@@ -224,8 +224,10 @@ td,th{border-color:var(--edge2)}
 .fcell.mine:hover{filter:brightness(1.06)}.fcell i{color:#fff;text-shadow:0 1px 0 #000,1px 0 0 #000,-1px 0 0 #000,0 -1px 0 #000;z-index:1}.fcell i.ico{position:absolute;right:1px;top:1px;width:14px;height:14px;text-shadow:none}
 .fcell.empty{color:#8b93a6}
 /* battle scene overlay keeps dark plates so faction colours read over the sky */
-.sbar{background:#15224fee;color:#fff}.sbar .sub{color:#c8d3f5}
-#sround,#sskip{background:#15224fdd;color:#eef2ff;border-color:#0b1436}
+/* battle scene plates use the tan parchment window */
+.sbar,#sround,#sskip,#sban .sb{background:none;box-shadow:none;border:10px solid transparent;border-image:var(--i-panel) 18 fill/10px stretch;filter:drop-shadow(0 3px 0 #0007);color:var(--text)}
+.sbar{padding:0}.sbar .sub{color:var(--dim)}#sround,#sskip{padding:0 4px}#sban .sb{padding:0 10px;text-shadow:2px 2px 0 #3a2413}
+.sbar.hit{animation:shit .3s}@keyframes shit{0%,60%{filter:drop-shadow(0 3px 0 #0007) sepia(1) saturate(5) hue-rotate(-40deg);transform:translateX(3px)}30%{transform:translateX(-3px)}}
 #sban .sb{background:var(--i-ribb) center/100% 100% no-repeat;border:none;color:#fff;text-shadow:0 2px 0 #0008;padding:10px 40px 14px 34px}
 #sban .sb.r{background-image:var(--i-ribr);padding:10px 34px 14px 40px}
 /* notices */
@@ -281,7 +283,7 @@ td,th{border-color:var(--edge2)}
  #bfield{padding:6px calc(8px + var(--sr)) 6px calc(8px + var(--sl));gap:8px}.bvs{display:none}.bcol{gap:6px}
  .gcard{padding:0 2px;gap:5px;border-width:12px;border-image-width:12px}.gcard .nm{font-size:12px!important}.gcard .ph canvas{width:40px;height:40px}
  .formw{gap:8px}.form{grid-template-columns:repeat(2,56px);gap:3px}.fcell{height:40px}.fcell canvas{width:43px;height:36px}.form .fh{font-size:12px}
- .sbar{padding:3px 8px 2px}#sskipall{bottom:calc(3% + 30px);min-height:38px}
+ .sbar{padding:3px 8px 2px}#sskipall{bottom:calc(3% + 42px);min-height:38px}
 }
 /* frame borders carry the button padding */
 .btn{padding:0 2px}.btn.sm{padding:0 1px}#title .btn,#tacbtns .btn{padding:0 6px}#zoom .btn,.xbtn{padding:0}
@@ -1795,7 +1797,7 @@ function drawScene(cx, S, t, dt) {
       // built once per scene: portrait, name, then the General's HP bar stacked over the troops bar
       const tmax = Math.max(1, (sd ? S.uR : S.uL).filter(u => u.kind === 'sq').length * 10);
       el._max = [10, tmax]; el.style.borderColor = pal.main;
-      el.innerHTML = `<div class="sport"></div><div class="sinfo"><div class="sname"><span style="color:${pal.light}">${g.g.name}</span><span class="sub">${g.g.cls} Lv${g.g.lvl}</span></div>
+      el.innerHTML = `<div class="sport"></div><div class="sinfo"><div class="sname"><span style="color:${pal.dark}">${g.g.name}</span><span class="sub">${g.g.cls} Lv${g.g.lvl}</span></div>
         <div class="shp gen"><i class="lag"></i><i class="fill"></i><span><i class="ico ico-helmet"></i><b></b></span></div>
         <div class="shp trp"><i class="lag"></i><i class="fill"></i><span><i class="ico ico-people"></i><b></b></span></div></div>`;
       el.querySelector('.sport').appendChild(portraitImg(g.g, 48));
