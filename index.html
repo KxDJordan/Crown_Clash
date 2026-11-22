@@ -478,10 +478,10 @@ function genWorld(seed, o = {}) {
     else if (shape === 'inland') e = e + 0.3 - Math.pow(dd, 2.4) * 0.6 - Math.max(0, 0.42 - dd) * 2.6 + det;
     else e = e + 0.3 - Math.pow(dd, 2.4) * 0.6 + det;
     elev[i] = e;
-    moist[i] = fbm(x / 11 + 30, y / 11 - 20, s + 9, 4);
-    temp[i] = ny + (fbm(x / 13, y / 13, s + 21, 3) - 0.5) * 0.4;
+    moist[i] = fbm(x / 19 + 30, y / 19 - 20, s + 9, 3); // broad climate zones so biomes form clean regions
+    temp[i] = ny + (fbm(x / 20, y / 20, s + 21, 2) - 0.5) * 0.3;
   }
-  const sq = SEA_Q[shape], sea = quantile(elev, sq), deep = quantile(elev, sq * 0.62), hills = quantile(elev, 0.86), mount = quantile(elev, 0.935), low = quantile(elev, 0.62);
+  const sq = SEA_Q[shape], sea = quantile(elev, sq), deep = quantile(elev, sq * 0.62), hills = quantile(elev, 0.885), mount = quantile(elev, 0.935), low = quantile(elev, 0.62);
   const mq = quantile(moist, 0.5);
   const tiles = new Uint8Array(N);
   for (let i = 0; i < N; i++) {
@@ -497,6 +497,17 @@ function genWorld(seed, o = {}) {
     tiles[i] = k;
   }
   const isWater = k => k <= 1;
+  // tidy the regions: a land tile that disagrees with most of its neighbours takes their terrain
+  for (let pass = 0; pass < 3; pass++) {
+    const nt = tiles.slice(), cnt = new Uint8Array(16);
+    for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+      const i = y * W + x, k = tiles[i]; if (k <= 1 || k === T.MOUNT) continue;
+      cnt.fill(0); for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (dx || dy) cnt[tiles[i + dy * W + dx]]++;
+      let m = -1, mc = 0; for (let t = 2; t < 16; t++) if (t !== T.MOUNT && cnt[t] > mc) { mc = cnt[t]; m = t; }
+      if (m !== k && cnt[k] <= 2 && mc >= 4) nt[i] = m;
+    }
+    tiles.set(nt);
+  }
   // coast sand
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const i = y * W + x, k = tiles[i];
@@ -696,7 +707,7 @@ function citySpriteName(c) {
 
 // ============ WORLD RENDER ============
 let terrainCv = null, territoryCv = null, sparkles = [];
-const GTEX = { [T.GRASS]: ['grass', 'grass_fl'], [T.PLAINS]: ['grass_fl', 'grass'], [T.FOREST]: ['grass', 'grass'], [T.HILLS]: ['grass', 'grass_fl'], [T.MOUNT]: ['dirt_rk', 'dirt'], [T.SNOW]: ['snow', 'snow_rk'], [T.DESERT]: ['sand', 'sand_pl'], [T.SWAMP]: ['swamp', 'grass'], [T.SAND]: ['sand', 'sand'] };
+const GTEX = { [T.GRASS]: ['grass', 'grass_fl'], [T.PLAINS]: ['grass', 'grass_fl'], [T.FOREST]: ['grass', 'grass'], [T.HILLS]: ['grass', 'grass_fl'], [T.MOUNT]: ['dirt_rk', 'dirt'], [T.SNOW]: ['snow', 'snow_rk'], [T.DESERT]: ['sand', 'sand_pl'], [T.SWAMP]: ['swamp', 'grass'], [T.SAND]: ['sand', 'sand'] };
 // value noise at a fixed pixel scale (same values as vnoise for px, py >= 0), with the lattice hashed once up front
 function noiseField(scale, s, PW, PH) {
   const gw = Math.floor(PW / scale) + 3, gh = Math.floor(PH / scale) + 3, L = new Float32Array(gw * gh);
@@ -711,7 +722,7 @@ function renderWorldTerrain() {
   const [cv, cx] = mkCanvas(PW, PH);
   const img = cx.createImageData(PW, PH), d = img.data;
   const E = new Float32Array(PW * PH);
-  const n12 = noiseField(12, s + 5, PW, PH), n5 = noiseField(5, s + 6, PW, PH), n22a = noiseField(22, s + 300, PW, PH), n22b = noiseField(22, s + 400, PW, PH), n30 = noiseField(30, s + 9, PW, PH), n45 = [];
+  const n12 = noiseField(12, s + 5, PW, PH), n5 = noiseField(5, s + 6, PW, PH), n22a = noiseField(22, s + 300, PW, PH), n22b = noiseField(22, s + 400, PW, PH);
   const EL = G.elev, el = (x, y) => EL[(y < 0 ? 0 : y > H - 1 ? H - 1 : y) * W + (x < 0 ? 0 : x > W - 1 ? W - 1 : x)];
   for (let py = 0; py < PH; py++) {
     const fy = (py + 0.5) / WT - 0.5, y0 = Math.floor(fy), ty = fy - y0;
@@ -739,12 +750,10 @@ function renderWorldTerrain() {
       if (k <= 1) k = G.tiles[clamp((py / WT) | 0, 0, H - 1) * W + clamp((px / WT) | 0, 0, W - 1)];
       if (k <= 1) k = T.SAND;
       if (e - sea < 0.006 && k !== T.SNOW) k = T.SAND;
-      const nk = n45[k] || (n45[k] = noiseField(45, s + 77 + k, PW, PH)), rr = GR[k][nk(px, py) > 0.62 ? 1 : 0];
+      const rr = GR[k][0];
       let u = (px + k * 17) & 127, v = (py + k * 29) & 127; if (u >= 64) u = 127 - u; if (v >= 64) v = 127 - v;
       const ao = ((rr[1] + v) * AW + rr[0] + u) * 4;
-      const ex = E[Math.max(0, py - 2) * PW + Math.max(0, px - 2)] - E[Math.min(PH - 1, py + 2) * PW + Math.min(PW - 1, px + 2)];
-      const sh = 1 + clamp(ex * 40, -0.18, 0.18) + (n30(px, py) - 0.5) * 0.1;
-      r = ATL[ao] * sh; g = ATL[ao + 1] * sh; b = ATL[ao + 2] * sh;
+      r = ATL[ao]; g = ATL[ao + 1]; b = ATL[ao + 2]; // flat ground: no slope shading or mottling
     }
     d[o] = r; d[o + 1] = g; d[o + 2] = b; d[o + 3] = 255; // Uint8ClampedArray clamps and rounds
   }
@@ -781,12 +790,12 @@ function renderWorldTerrain() {
     const cold = G.temp[i] < 0.3, hot = G.temp[i] > 0.75;
     let n = null;
     if (k === T.FOREST) n = cold ? (h(2) < 0.6 ? 'snowpines' : 'pines') : h(3) < 0.035 ? 'autumn' : pick2(['oaks', 'pines', 'mixed', 'oaks_rk', 'bigoaks', 'mixed_rk', 'oak', 'oaks'], h(4));
-    else if (k === T.HILLS) n = h(2) < 0.06 ? 'mine' : h(2) < 0.08 ? 'crystal' : h(2) < 0.22 ? 'rockhill' : pick2(['hill_s', 'hill', 'hill_b'], h(3));
+    else if (k === T.HILLS) n = h(2) < 0.025 ? 'mine' : h(2) < 0.035 ? 'crystal' : h(2) < 0.15 ? 'rockhill' : pick2(['hill_s', 'hill', 'hill_b'], h(3));
     else if (k === T.MOUNT) { if (hot && !volcano && h(5) < 0.1) { n = 'volcano'; volcano = true; } else n = cold ? pick2(['snowmount', 'snowmount2'], h(3)) : h(4) < 0.25 ? 'snowmount' : 'mount'; }
     else if (k === T.SNOW) n = h(2) < 0.15 ? 'snowpines' : h(2) < 0.2 ? 'rocks' : null;
     else if (k === T.DESERT) n = h(2) < 0.07 ? 'rocks' : h(2) < 0.09 ? 'deadtree' : null;
     else if (k === T.SWAMP) n = h(2) < 0.18 ? 'pond' : h(2) < 0.24 ? 'deadtree' : null;
-    else if (k === T.GRASS || k === T.PLAINS) n = h(2) < 0.06 ? 'oak' : h(2) < 0.075 ? pick2(['ruins', 'henge', 'ruins2', 'rockpond', 'geyser'], h(3)) : h(2) < 0.1 ? 'rocks_g' : null;
+    else if (k === T.GRASS || k === T.PLAINS) n = h(2) < 0.025 ? 'oak' : h(2) < 0.033 ? pick2(['ruins', 'henge', 'ruins2', 'rockpond', 'geyser'], h(3)) : h(2) < 0.043 ? 'rocks_g' : null;
     if (n) drawAt(cx, n, cxp, by + (k === T.MOUNT ? 4 : 0));
   }
   }
