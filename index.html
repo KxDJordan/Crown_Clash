@@ -1197,6 +1197,8 @@ const cmdBonus = g => 1 + Math.floor(g.cmd / 10) + (hasTech(g.faction, 'tactics'
 const cmdRange = g => 2 + (g.cmd >= 28 ? 1 : 0) + (hasTech(g.faction, 'tactics') ? 1 : 0);
 const worldMove = g => Math.max(2, CLASSES[g.cls].wmov + (hasTech(g.faction, 'logistics') ? 1 : 0) - (crisisOn('winter') ? 2 : 0));
 const xpNeed = l => 40 + l * 30;
+// soldiers per squad grow with the General's Leadership (which rises every level): 10 at the start, up to 24
+const sqMax = g => clamp(10 + Math.floor(Math.max(0, g.ldr - 20) / 5), 10, 24);
 function troopAtk(f, type) { let a = TROOPS[type].atk; if (hasTech(f, 'forge')) a += 2; if (hasTech(f, 'steel')) a += 3; if (type === 'archer' && hasTech(f, 'longbow')) a += 3; if (type === 'cavalry' && hasTech(f, 'lances')) a += 3; return a; }
 function troopDef(f, type) { let d = TROOPS[type].def; if (hasTech(f, 'shields')) d += 2; if (hasTech(f, 'plate')) d += 3; if (type === 'spear' && hasTech(f, 'pikes')) d += 3; return d; }
 const troopUnlocked = (f, type) => !TROOPS[type].req || hasTech(f, TROOPS[type].req);
@@ -1204,11 +1206,12 @@ const hireCost = g => 50 + g.stars * 55 + (g.lvl - 1) * 15;
 const upkeep = g => 2 + g.stars + g.squads.length * 2;
 const costMul = f => hasTech(f, 'conscript') ? 0.75 : 1;
 function gainXP(g, xp) {
-  g.xp += xp; let ups = 0;
+  g.xp += xp; let ups = 0; const m0 = sqMax(g);
   while (g.xp >= xpNeed(g.lvl) && g.lvl < 30) {
     g.xp -= xpNeed(g.lvl); g.lvl++; ups++; const gr = CLASSES[g.cls].g;
     g.atk += ri(1, gr[0]); g.def += ri(1, gr[1]); g.ldr += ri(1, gr[2] + 1); g.cmd += ri(0, gr[3]);
   }
+  const grow = sqMax(g) - m0; if (grow > 0) for (const s of g.squads) if (s.hp > 0) s.hp = Math.min(sqMax(g), s.hp + grow); // new recruits rally to a rising General
   return ups;
 }
 function armyPower(g) { let p = 10 * (g.atk + g.def) / 40; for (const s of g.squads) p += s.hp * (TROOPS[s.type].atk + TROOPS[s.type].def) / 30; return p * (1 + cmdBonus(g) * 0.05); }
@@ -1239,7 +1242,7 @@ function makeCastellan(city) {
   g.temp = true; g.city = city.id; g.name = 'Castellan ' + g.name.split(' ')[0];
   g.lvl = city.level; g.atk += city.level; g.def += city.level + (city.walls ? 4 : 0) + (hasTech(city.owner, 'masonry') ? 2 : 0);
   const n = clamp(1 + city.level + (city.barracks ? 1 : 0), 1, 5), types = ['spear', 'infantry', 'archer'];
-  const hp = Math.max(1, Math.round(10 * city.garrison));
+  const hp = Math.max(1, Math.round(sqMax(g) * city.garrison));
   for (let k = 0; k < n; k++) g.squads.push({ type: types[k % 3], hp });
   return g;
 }
@@ -1282,7 +1285,7 @@ function applyAbilities(b) {
     const k = b.abil.get(gu.g.id); if (!k) continue; const A = ABIL[k];
     gu.fx = A.fx; if (!gu.g.temp) gu.g.cd = G.turn + ABIL_CD;
     if (A.fx.ea) b.ea[1 - gu.side] *= A.fx.ea;
-    if (A.fx.heal) for (const s of squadsOf(b, gu)) s.hp = Math.min(10, s.hp + A.fx.heal);
+    if (A.fx.heal) for (const s of squadsOf(b, gu)) s.hp = Math.min(sqMax(gu.g), s.hp + A.fx.heal);
     if (A.fx.strike) {
       const before = new Map(b.units.map(u => [u.uid, u.hp]));
       for (const e of b.units.filter(u => u.side !== gu.side && u.hp > 0)) {
@@ -1394,8 +1397,8 @@ function pairExchange(b, gA, gB) {
   const heals = [];
   if (!b.over) for (const grp of [A, B]) for (const p of grp) {
     if (p.kind !== 'sq' || p.type !== 'priest' || p.hp <= 0) continue;
-    const t = grp.filter(u => u.kind === 'sq' && u.hp > 0 && u.hp < 10).sort((x, y) => x.hp - y.hp)[0]; if (!t) continue;
-    const n = Math.min(10 - t.hp, p.hp >= 6 ? 2 : 1); t.hp += n; heals.push({ u: t, n, by: p });
+    const t = grp.filter(u => u.kind === 'sq' && u.hp > 0 && u.hp < sqMax(u.g)).sort((x, y) => x.hp - y.hp)[0]; if (!t) continue;
+    const n = Math.min(sqMax(t.g) - t.hp, p.hp >= 6 ? 2 : 1); t.hp += n; heals.push({ u: t, n, by: p });
   }
   return { A, B, before, falls, gA, gB, acts: log, heals };
 }
@@ -1576,8 +1579,8 @@ function sceneBg(biome, castle) {
 
 // the background's near grass starts around y=178 (above that are the distant hills), so every lane sits below it
 const LANES = [191, 211, 231], COLX = [158, 86], GROUND = 184;
-const SOFF = [[0, 0], [-12, -5], [-13, 5], [-25, -1], [-24, 7]];
-const dispN = hp => Math.min(5, Math.ceil(Math.max(0, hp) / 2));
+const SOFF = [[0, 0], [-12, -5], [-13, 5], [-25, -1], [-24, 7], [-36, -4], [-37, 6], [-48, 1]];
+const dispN = hp => Math.min(8, Math.ceil(Math.max(0, hp) / 2)); // one figure per 2 soldiers, up to 8
 function layoutArmy(gu, units, side, hpOf) {
   const pal = G.pals[gu.g.faction] || G.pals[NEUTRAL], list = [], X = x => side ? SW - x : x;
   const mk = (u, gen, x, y) => { const cav = u.type === 'cavalry'; list.push({ u, side, gen, type: u.type, pal, hx: X(x), hy: y, off: R(), skin: gen ? SKINS[gu.g.pseed % 5] : pick(SKINS), horse: gen ? 0 : ri(0, 2), ranged: isRanged(u), spd: (gen ? 112 : cav ? 125 : 88) * (0.85 + R() * 0.3), t0: 0.3 + R() * 0.55, reach: (cav ? 17 : 11) + (gen ? 3 : 0) + R() * 3, jy: (R() - 0.5) * 7, kbx: 0, z: 0, vz: 0 }); };
@@ -1932,7 +1935,7 @@ function drawScene(cx, S, t, dt) {
     const key = troops + ':' + ghp; if (el._k === key) return;
     if (!el._k) {
       // built once per scene: portrait, name, then the General's HP bar stacked over the troops bar
-      const tmax = Math.max(1, (sd ? S.uR : S.uL).filter(u => u.kind === 'sq').length * 10);
+      const tmax = Math.max(1, (sd ? S.uR : S.uL).filter(u => u.kind === 'sq').reduce((a, u) => a + sqMax(u.g), 0));
       el._max = [10, tmax]; el.style.borderColor = pal.main;
       el.innerHTML = `<div class="sport"></div><div class="sinfo"><div class="sname"><span style="color:${pal.dark}">${g.g.name}</span><span class="sub">${g.g.cls} Lv${g.g.lvl}</span></div>
         <div class="shp gen"><i class="lag"></i><i class="fill"></i><span><i class="ico ico-helmet"></i><b></b></span></div>
@@ -1998,7 +2001,7 @@ function newGame(world, kname, o = {}) {
   G.gens = []; GID = 1;
   for (let f = 0; f < K; f++) {
     const c = capitalOf(f);
-    const g = makeGeneral(f, 3, f === 0 ? 'Fighter' : pick(['Fighter', 'Lancer', 'Knight'])); g.squads = [{ type: 'infantry', hp: 10 }, { type: 'spear', hp: 10 }];
+    const g = makeGeneral(f, 3, f === 0 ? 'Fighter' : pick(['Fighter', 'Lancer', 'Knight'])); g.squads = [{ type: 'infantry', hp: sqMax(g) }, { type: 'spear', hp: sqMax(g) }];
     placeGen(g, c.x, c.y); G.gens.push(g); g.mp = worldMove(g);
   }
   cityCache.clear(); portCache.clear(); genReset(); recolorCache.clear();
@@ -2070,7 +2073,7 @@ function addKXP(f, n) {
 const upCost = (c) => Math.round(120 * c.level * (hasTech(c.owner, 'masonry') ? 0.75 : 1));
 const BUILD = { market: { n: 'Market', c: 100, d: '+25% city income' }, barracks: { n: 'Barracks', c: 120, d: '+1 garrison squad, faster garrison regen' }, walls: { n: 'Walls', c: 150, d: 'Sealed walls (no breaches) & sturdier castellan' } };
 const buildCost = (c, k) => Math.round(BUILD[k].c * (k === 'walls' && hasTech(c.owner, 'masonry') ? 0.75 : 1));
-function refillCost(g) { let c = 0; for (const s of g.squads) c += (10 - s.hp) * TROOPS[s.type].refill; return Math.round(c * costMul(g.faction)); }
+function refillCost(g) { let c = 0; for (const s of g.squads) c += Math.max(0, sqMax(g) - s.hp) * TROOPS[s.type].refill; return Math.round(c * costMul(g.faction)); }
 const trainCost = (f, type) => Math.round(TROOPS[type].cost * costMul(f));
 function canRefit(g) { return g.status === 'field' && tileOwner(g.y * G.W + g.x) === g.faction; }
 
@@ -2242,7 +2245,7 @@ async function aiTurn(f) {
     const g = makeGeneral(f, clamp(1 + Math.floor(R() * 2 + R() * F.klv * 0.3), 1, 5));
     const cost = hireCost(g); if (F.gold < cost + 80) { GID--; break; }
     const cap = capitalOf(f); if (!cap || !placeGen(g, cap.x, cap.y)) break;
-    F.gold -= cost; g.squads = [{ type: troopUnlocked(f, CLASSES[g.cls].fav || 'infantry') ? (CLASSES[g.cls].fav || 'infantry') : 'infantry', hp: 10 }];
+    F.gold -= cost; g.squads = [{ type: troopUnlocked(f, CLASSES[g.cls].fav || 'infantry') ? (CLASSES[g.cls].fav || 'infantry') : 'infantry', hp: sqMax(g) }];
     G.gens.push(g); g.mp = 0;
   }
   computeTerritory();
@@ -2254,11 +2257,11 @@ async function aiTurn(f) {
 }
 function aiRefit(g, F) {
   if (!canRefit(g)) return;
-  for (const s of g.squads) { const c = Math.round((10 - s.hp) * TROOPS[s.type].refill * costMul(g.faction)); if (c > 0 && F.gold >= c + 30) { F.gold -= c; s.hp = 10; } }
+  for (const s of g.squads) { const c = Math.round(Math.max(0, sqMax(g) - s.hp) * TROOPS[s.type].refill * costMul(g.faction)); if (c > 0 && F.gold >= c + 30) { F.gold -= c; s.hp = sqMax(g); } }
   while (g.squads.length < maxSquads(g)) {
     const opts = Object.keys(TROOPS).filter(t => troopUnlocked(g.faction, t));
     const fav = CLASSES[g.cls].fav; const type = fav && opts.includes(fav) && R() < 0.4 ? fav : pick(opts);
-    const c = trainCost(g.faction, type); if (F.gold < c + 50) break; F.gold -= c; g.squads.push({ type, hp: 10 });
+    const c = trainCost(g.faction, type); if (F.gold < c + 50) break; F.gold -= c; g.squads.push({ type, hp: sqMax(g) });
   }
 }
 function defPower(tgt, f) {
@@ -2419,15 +2422,10 @@ function drawWorld(ts) {
     const moving = Math.abs(ax - g.x) + Math.abs(ay - g.y) > 0.01;
     const dim = g.faction === 0 && g.mp <= 0;
     drawBanner(ctx, X + 3, Y + 12, pal, t, g.stars >= 4);
-    const fr = Math.floor(t * 4 + g.id) % 4;
     if (dim) ctx.globalAlpha = 0.7;
-    if (g.squads[2]) miniFig(ctx, X + 13, Y + 10, g.squads[2].type, pal, 1, fr);
     drawGenWorld(ctx, g, ax, ay, moving, t + g.id) || drawSoldier(ctx, { type: CLASSES[g.cls].type, pal, x: X + 8, y: Y + 13, facing: 1, state: moving ? 'run' : 'idle', t: t + g.id, gen: true, skin: SKINS[g.pseed % 5], alpha: dim ? 0.7 : 1 });
     if (dim) ctx.globalAlpha = 0.7;
-    if (g.squads[0]) miniFig(ctx, X + 3, Y + 15, g.squads[0].type, pal, 1, fr + 1);
-    if (g.squads[1]) miniFig(ctx, X + 13, Y + 15, g.squads[1].type, pal, 1, fr + 2);
     ctx.globalAlpha = 1;
-    for (let k = 0; k < g.squads.length; k++) { const s = g.squads[k]; ctx.fillStyle = s.hp >= 7 ? '#8ee08a' : s.hp >= 4 ? '#f0c060' : '#f07050'; ctx.fillRect(X + 2 + k * 2, Y + 16, 1, 1); }
     ctx.restore();
   }
   // selection
@@ -2441,6 +2439,18 @@ function drawWorld(ts) {
       const sx = (c.x * WT + WT / 2) * S - ox, sy = (c.y * WT + WT) * S - oy + 13 * dpr; if (sx < -100 || sy < -20 || sx > wcv.width + 100 || sy > wcv.height + 20) continue;
       const lbl = (c.capital ? '♛ ' : '') + c.name + ' ' + c.level;
       ctx.lineWidth = 3 * dpr; ctx.strokeStyle = 'rgba(0,0,0,.85)'; ctx.strokeText(lbl, sx, sy); ctx.fillStyle = c.owner === NEUTRAL ? '#e8e0c8' : G.pals[c.owner].light; ctx.fillText(lbl, sx, sy);
+    }
+    // General name plates: name over the head, the army's HP (soldiers left / full strength) as a bar beneath it
+    ctx.font = `${Math.round(13 * dpr)}px 'Jersey 15',monospace`;
+    for (const g of arm) {
+      const onCity = cityAt(g.x, g.y) ? 9 : 0, sx = ((g.ax ?? g.x) * WT + WT / 2 + onCity) * S - ox, top = ((g.ay ?? g.y) * WT + onCity * 0.4) * S - oy;
+      if (sx < -80 || top < -40 || sx > wcv.width + 80 || top > wcv.height + 40) continue;
+      const hp = g.squads.reduce((a, s) => a + Math.max(0, s.hp), 0), mx = Math.max(1, g.squads.length * sqMax(g)), pal = G.pals[g.faction];
+      const bw = Math.round(34 * dpr), bh = Math.max(3, Math.round(4 * dpr)), by = top - 4 * dpr, ny = by - 3 * dpr;
+      ctx.fillStyle = 'rgba(0,0,0,.8)'; ctx.fillRect(Math.round(sx - bw / 2 - dpr), Math.round(by - dpr), bw + 2 * dpr, bh + 2 * dpr);
+      const k = clamp(hp / mx, 0, 1); ctx.fillStyle = k > 0.6 ? '#7ad86a' : k > 0.3 ? '#f0c060' : '#f07050'; ctx.fillRect(Math.round(sx - bw / 2), Math.round(by), Math.round(bw * k), bh);
+      const nm = g.name.split(' ')[0] + ' ' + hp;
+      ctx.lineWidth = 3 * dpr; ctx.strokeStyle = 'rgba(0,0,0,.85)'; ctx.strokeText(nm, sx, ny); ctx.fillStyle = g.faction === 0 ? '#fff' : pal.light; ctx.fillText(nm, sx, ny);
     }
   }
 }
@@ -2499,8 +2509,8 @@ function renderHUD() {
 const UNIT_ICO = { infantry: 'swords', spear: 'spear', archer: 'bow', cavalry: 'helmet', armored: 'shield', blade: 'clash', priest: 'heart' };
 const TILE_ICO = ['river', 'river', 'desert', 'grass', 'grass', 'trees', 'rocks', 'mountain', 'snow', 'desert', 'river'];
 function sqRow(s, idx, g, own) {
-  const p = s.hp * 10;
-  return `<div class="sq"><i class="ico ico-${UNIT_ICO[s.type]}"></i><span class="t">${TROOPS[s.type].n}</span><div class="hp"><i class="${s.hp <= 4 ? 'low' : ''}" style="width:${p}%"></i></div><span style="width:34px;text-align:right">${s.hp}/10</span>${own ? `<button class="btn sm" data-dis="${idx}" title="Disband">✕</button>` : ''}</div>`;
+  const m = sqMax(g), p = Math.min(100, s.hp / m * 100);
+  return `<div class="sq"><i class="ico ico-${UNIT_ICO[s.type]}"></i><span class="t">${TROOPS[s.type].n}</span><div class="hp"><i class="${s.hp <= m * 0.4 ? 'low' : ''}" style="width:${p}%"></i></div><span style="width:40px;text-align:right">${s.hp}/${m}</span>${own ? `<button class="btn sm" data-dis="${idx}" title="Disband">✕</button>` : ''}</div>`;
 }
 function genStatsHTML(g) {
   const C = CLASSES[g.cls];
@@ -2539,8 +2549,8 @@ function armyPanel(g) {
   }
   const c = cityAt(g.x, g.y); if (c) h += `<div class="row"><button class="btn sm" id="pCity">View ${c.name}</button></div>`;
   P.innerHTML = h; $('#pport').appendChild(portraitImg(g, 64));
-  const rb = $('#pRefill'); if (rb) rb.onclick = () => { const rc = refillCost(g); if (F.gold >= rc) { F.gold -= rc; g.squads.forEach(s => s.hp = 10); toast('Squads replenished.'); afterWorldChange(); } };
-  P.querySelectorAll('[data-train]').forEach(b => b.onclick = () => { const t = b.dataset.train, cst = trainCost(0, t); if (F.gold < cst || g.squads.length >= maxSquads(g)) return; F.gold -= cst; g.squads.push({ type: t, hp: 10 }); afterWorldChange(); });
+  const rb = $('#pRefill'); if (rb) rb.onclick = () => { const rc = refillCost(g); if (F.gold >= rc) { F.gold -= rc; g.squads.forEach(s => s.hp = sqMax(g)); toast('Squads replenished.'); afterWorldChange(); } };
+  P.querySelectorAll('[data-train]').forEach(b => b.onclick = () => { const t = b.dataset.train, cst = trainCost(0, t); if (F.gold < cst || g.squads.length >= maxSquads(g)) return; F.gold -= cst; g.squads.push({ type: t, hp: sqMax(g) }); afterWorldChange(); });
   P.querySelectorAll('[data-dis]').forEach(b => b.onclick = () => { g.squads.splice(+b.dataset.dis, 1); afterWorldChange(); });
   const pc = $('#pCity'); if (pc) pc.onclick = () => { UI.sel = null; UI.selCity = c; UI.reach = null; UI.targets = []; renderPanel(); };
 }
@@ -2615,7 +2625,7 @@ function tavernModal() {
   document.querySelectorAll('[data-hire]').forEach(b => b.onclick = () => {
     const g = F.scout[+b.dataset.hire], cost = hireCost(g); if (F.gold < cost || fGens(0).length >= genCap(0)) return;
     const cap = capitalOf(0); if (!placeGen(g, cap.x, cap.y)) { toast('No room near the capital!'); return; }
-    F.gold -= cost; const fav = CLASSES[g.cls].fav || 'infantry'; g.squads = [{ type: troopUnlocked(0, fav) ? fav : 'infantry', hp: 10 }]; g.mp = 0;
+    F.gold -= cost; const fav = CLASSES[g.cls].fav || 'infantry'; g.squads = [{ type: troopUnlocked(0, fav) ? fav : 'infantry', hp: sqMax(g) }]; g.mp = 0;
     G.gens.push(g); F.scout.splice(+b.dataset.hire, 1);
     toast(`${g.name} joins your cause!`); logMsg(`${g.name} (${g.cls}) hired`);
     closeModal(); centerOn(g.x, g.y); selectArmy(g);
