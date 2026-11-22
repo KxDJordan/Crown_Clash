@@ -133,7 +133,7 @@ th{color:var(--dim);font-weight:400;font-size:15px;letter-spacing:1px;text-trans
 .sbar .big{font-size:clamp(20px,3.4vw,38px);line-height:1}
 #sbL{left:2%}#sbR{right:2%;flex-direction:row-reverse;text-align:right}
 #sround{position:absolute;bottom:3%;left:2%;font-size:clamp(12px,1.6vw,18px);color:var(--text);background:#1b2030dd;border:2px solid #0c0e16;padding:3px 10px 2px}
-#sskipall{position:absolute;bottom:calc(3% + 46px);right:2%}
+#sskipall{position:absolute;bottom:calc(3% + 46px);right:2%}#sretreat{position:absolute;bottom:calc(3% + 92px);right:2%}
 #sskip{position:absolute;bottom:3%;right:2%;font-size:clamp(12px,1.5vw,16px);color:#f4eedccc;background:#1b203099;padding:3px 10px 2px}
 #sban{position:absolute;top:22%;left:0;right:0;pointer-events:none}
 #spops{position:absolute;inset:0;pointer-events:none;overflow:hidden}
@@ -349,6 +349,7 @@ td,th{border-color:var(--edge2)}
  <button class="btn" id="bKingdom"><span class="ic"><i class="ico ico-castle"></i></span><span class="lb">Kingdom</span></button>
  <button class="btn" id="bGenerals"><span class="ic"><i class="ico ico-helmet"></i></span><span class="lb">Generals</span></button>
  <button class="btn" id="bTavern"><span class="ic"><i class="ico ico-handshake"></i></span><span class="lb">Tavern</span></button>
+ <button class="btn" id="bDip"><span class="ic"><i class="ico ico-handshake"></i></span><span class="lb">Diplomacy</span></button>
  <button class="btn" id="bTech"><span class="ic"><i class="ico ico-books"></i></span><span class="lb">Tech</span></button>
  <button class="btn" id="bNext"><span class="ic"><i class="ico ico-flag"></i></span><span class="lb">Next Army</span></button>
  <button class="btn gold" id="bEnd"><span class="ic"><i class="ico ico-right"></i></span><span class="lb">End Turn</span></button>
@@ -360,12 +361,13 @@ td,th{border-color:var(--edge2)}
  <div id="tacbar"><div id="tacinfo"></div><div id="tacbtns" class="row" style="margin:0"></div></div>
 </div>
 <div id="scene"><div id="scenebox"><canvas id="scenecv" width="432" height="243"></canvas><div id="spops"></div>
- <div class="sbar" id="sbL"></div><div class="sbar" id="sbR"></div><div id="sban"></div><div id="sround"></div><div id="sskip">Tap to skip this clash</div><button class="btn sm" id="sskipall"><i class="ico ico-right"></i> Skip battle</button></div></div>
+ <div class="sbar" id="sbL"></div><div class="sbar" id="sbR"></div><div id="sban"></div><div id="sround"></div><div id="sskip">Tap to skip this clash</div><button class="btn sm red" id="sretreat" title="Break off the battle: your General escapes but every squad loses a quarter of its soldiers"><i class="ico ico-left"></i> Retreat</button><button class="btn sm" id="sskipall"><i class="ico ico-right"></i> Skip battle</button></div></div>
 <div id="title"><div class="tb"><div class="crest"></div>
  <h1>CROWN <span class="amp">&amp;</span> CLASH</h1>
  <p class="tag">Raise generals. Command armies. Conquer the realm.</p>
  <div id="tMenu" class="tmenu">
   <button class="btn gold" id="tCont" style="display:none"><i class="ico ico-book"></i> Continue</button>
+  <button class="btn" id="tLoadG" style="display:none"><i class="ico ico-scroll"></i> Load Game</button>
   <button class="btn gold" id="tNew"><i class="ico ico-crown"></i> New Game</button>
   <button class="btn" id="tOpts"><i class="ico ico-gear"></i> Options</button>
   <button class="btn" id="tHelp"><i class="ico ico-scroll"></i> How to Play</button>
@@ -380,6 +382,8 @@ td,th{border-color:var(--edge2)}
     <div class="trow"><span>Rivals</span><div class="seg" data-opt="enemies"><button class="btn sm" data-v="1">1</button><button class="btn sm" data-v="2">2</button><button class="btn sm" data-v="3">3</button></div></div>
     <div class="trow"><span>Towns each</span><div class="seg" data-opt="towns"><button class="btn sm" data-v="1">1</button><button class="btn sm" data-v="2">2</button><button class="btn sm" data-v="3">3</button></div></div>
     <div class="trow"><span>Treasury</span><div class="seg" data-opt="gold"><button class="btn sm" data-v="poor">Poor 150g</button><button class="btn sm" data-v="std">Standard 320g</button><button class="btn sm" data-v="rich">Rich 700g</button></div></div>
+    <div class="trow"><span>Save slot</span><div class="seg" data-opt="slot" id="tSlots"></div></div>
+    <div class="trow"><span>Difficulty</span><div class="seg" data-opt="diff"><button class="btn sm" data-v="easy">Easy</button><button class="btn sm" data-v="normal">Normal</button><button class="btn sm" data-v="hard">Hard</button></div></div>
     <div class="trow"><span>Fog of war</span><div class="seg" data-opt="fog"><button class="btn sm" data-v="1">On</button><button class="btn sm" data-v="0">Off</button></div></div>
     <div class="trow"><span>Crises</span><div class="seg" data-opt="crisis"><button class="btn sm" data-v="0">Off</button><button class="btn sm" data-v="1">On</button></div></div>
     <p class="sub" id="tCrisisInfo"></p>
@@ -491,7 +495,7 @@ function startResearch(f, id) {
 }
 function researchTick(f) {
   const F = G.factions[f]; if (!F.res) return; if (--F.res.left > 0) return;
-  const t = TECH[F.res.id]; F.techs.push(t.id); F.res = null;
+  const t = TECH[F.res.id]; F.techs.push(t.id); F.res = null; if (f === 0) stats().techs++;
   if (f === 0) { sfx('learn'); toast(`${t.icon} Research complete: <b>${t.n}</b>! ${t.d}`, 4500); logMsg(`Researched ${t.n}.`); }
 }
 const FACTION_DEF = [
@@ -700,8 +704,9 @@ function computeVis() {
   else {
     const reveal = (x, y, r) => { for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { const xx = x + dx, yy = y + dy; if (xx >= 0 && yy >= 0 && xx < W && yy < H && dx * dx + dy * dy <= r * r + r) see(yy * W + xx); } };
     for (let i = 0; i < N; i++) if (G.terr[i] >= 0 && G.cities[G.terr[i]].owner === 0) see(i);
-    for (const c of fCities(0)) reveal(c.x, c.y, 3 + c.level + (c.watchtower ? 3 : 0));
-    for (const g of G.gens) if (g.faction === 0 && g.status === 'field') reveal(g.x, g.y, 4);
+    const mine = f => f === 0 || allied(0, f); // allies share their sight
+    for (const c of G.cities) if (mine(c.owner)) reveal(c.x, c.y, 3 + c.level + (c.watchtower ? 3 : 0));
+    for (const g of G.gens) if (mine(g.faction) && g.status === 'field') reveal(g.x, g.y, 4);
     for (const m of (G.mines || [])) if (mineOwner(m) === 0) reveal(m.x, m.y, 2);
   }
   // fog layer: one pixel per tile, drawn scaled up with smoothing for soft edges
@@ -1424,8 +1429,24 @@ let UID = 1;
 const WALL_N = ['No walls', 'Palisade', 'Stone Walls', 'Fortress'], WALL_LV = [0, 1, 2, 4], WALL_COST = [150, 300, 520];
 const wallLvl = c => c ? (c.walls === true ? 1 : c.walls || 0) : 0;
 const WALL_DEF = [0.2, 0.36, 0.44, 0.52], WALL_ARCHERS = [0, 3, 4, 6];
-const wallArchers = c => WALL_ARCHERS[wallLvl(c)];
-const siegeDef = c => WALL_DEF[wallLvl(c)];
+// wall damage (c.wallDmg 0..1) persists between turns: it weakens the walls' bonus and thins the archers until repaired
+const wallIntact = c => c ? 1 - clamp(c.wallDmg || 0, 0, 1) : 1;
+const wallArchers = c => Math.round(WALL_ARCHERS[wallLvl(c)] * wallIntact(c));
+const siegeDef = c => 0.2 + (WALL_DEF[wallLvl(c)] - 0.2) * wallIntact(c);
+const repairCost = c => Math.max(20, Math.round((60 + 110 * wallLvl(c)) * (c.wallDmg || 0)));
+const besiegers = c => G.gens.filter(g => g.status === 'field' && g.siege === c.id && g.faction !== c.owner && man(g.x, g.y, c.x, c.y) === 1);
+// each turn a town is besieged its walls crumble, its garrison and people starve, and its mood sours
+function siegeTick() {
+  for (const c of G.cities) {
+    const bs = besiegers(c); c.besieged = bs.length > 0;
+    if (!c.besieged) continue;
+    if (wallLvl(c)) c.wallDmg = Math.min(1, (c.wallDmg || 0) + 0.2 + 0.1 * Math.min(2, bs.length - 1));
+    c.garrison = Math.max(0.25, c.garrison - 0.12); c.pop = Math.max(0, (c.pop || 0) - 4); if (c.happy != null) c.happy = Math.max(0, c.happy - 4);
+    if (c.build && c.build.k === 'repair') { c.build = null; } // no repairs under siege
+    if (c.owner === 0) toast(`<i class="ico ico-alert"></i> <b>${c.name}</b> is under siege! Walls ${Math.round(wallIntact(c) * 100)}%.`, 3500);
+  }
+  for (const g of G.gens) if (g.siege != null && (g.status !== 'field' || !G.cities[g.siege] || G.cities[g.siege].owner === g.faction || man(g.x, g.y, G.cities[g.siege].x, G.cities[g.siege].y) !== 1)) g.siege = null;
+}
 const wallCost = c => Math.round(WALL_COST[wallLvl(c)] * (hasTech(c.owner, 'masonry') ? 0.75 : 1));
 const canWall = c => wallLvl(c) < 3 && c.level >= WALL_LV[wallLvl(c) + 1];
 // garrisons: stars and squads grow with the town (the capital's castle adds a star); squads grow up to 30% larger
@@ -1583,14 +1604,31 @@ function pairExchange(b, gA, gB) {
   if (gA.hp <= 0 || gB.hp <= 0) return null;
   const S = buildClash(b, gA, gB); runClash(S); return finishClash(S);
 }
+// ---- RETREAT: an army may break off a battle; it keeps its General but leaves a quarter of every squad behind
+const RETREAT_LOSS = 0.25;
+function retreatBattle(b, side) {
+  if (b.over) return; b.over = true; b.retreat = side + 1; b.winner = 1 - side;
+  for (const u of b.units) if (u.side === side && u.kind === 'sq' && u.hp > 0) u.hp = Math.max(0, u.hp - Math.ceil(u.hp * RETREAT_LOSS));
+}
+// the AI pulls out when its troops are badly outnumbered and its General is hurt
+function aiConsiderRetreat(b) {
+  if (b.over) return;
+  for (const side of [0, 1]) {
+    if (side === b.player || b.units.some(u => u.side === side && u.kind === 'gen' && u.g.temp)) continue; // garrisons never run
+    const mine = b.units.filter(u => u.side === side && u.hp > 0), foe = b.units.filter(u => u.side !== side && u.hp > 0);
+    const tm = mine.filter(u => u.kind === 'sq').reduce((a, u) => a + u.hp, 0), tf = foe.filter(u => u.kind === 'sq').reduce((a, u) => a + u.hp, 0);
+    const gHurt = mine.filter(u => u.kind === 'gen').every(u => u.hp <= genMaxHp(u.g) / 2);
+    if (tf > 0 && tm < tf * 0.35 && gHurt && R() < 0.6) { retreatBattle(b, side); return; }
+  }
+}
 function endRound(b) { b.round++; if (!b.over && b.round > b.maxRounds) { b.over = true; b.winner = 1; b.timeout = true; } }
 function simulateBattle(b) {
   aiPickAbilities(b, 0); aiPickAbilities(b, 1); applyAbilities(b); checkEnd(b);
-  while (!b.over) { for (const [x, y] of pairings(b)) { if (b.over) break; pairExchange(b, x, y); } endRound(b); }
+  while (!b.over) { for (const [x, y] of pairings(b)) { if (b.over) break; pairExchange(b, x, y); } aiConsiderRetreat(b); endRound(b); }
   return b;
 }
 function battleResults(b) {
-  const out = { winner: b.winner, gens: [], timeout: !!b.timeout, retreat: !!b.retreat };
+  const out = { winner: b.winner, gens: [], timeout: !!b.timeout, retreat: b.retreat ? b.retreat - 1 : -1 };
   for (const u of b.units) if (u.kind === 'gen') {
     const sq = b.units.filter(s => s.kind === 'sq' && s.cmdr === u && s.hp > 0).map(s => ({ type: s.type, hp: s.hp, cell: s.s.cell, xp: s.s.xp || 0 })).concat(u.g.squads.filter(s => s.cell < 0 && s.hp > 0));
     out.gens.push({ g: u.g, side: u.side, fell: u.hp <= 0, squads: sq, xp: (b.xp[u.g.id] || 0) + 10 + (u.side === b.winner ? 15 : 0) });
@@ -1685,7 +1723,7 @@ function runManualBattle(b) {
 }
 function renderPre() {
   const b = TB.b, me = b.player;
-  const bonus = b.siege ? `Defenders +${Math.round(siegeDef(b.city) * 100)}% DEF (${WALL_N[wallLvl(b.city)]}${wallArchers(b.city) ? `, ${wallArchers(b.city)} archers on the walls` : ''})` : TERRAIN_DEF[b.biome] ? `Defenders ${TERRAIN_DEF[b.biome] > 0 ? '+' : ''}${Math.round(TERRAIN_DEF[b.biome] * 100)}% DEF (${TINFO[b.biome].n})` : 'Open field';
+  const bonus = b.siege ? `Defenders +${Math.round(siegeDef(b.city) * 100)}% DEF (${WALL_N[wallLvl(b.city)]}${wallLvl(b.city) && b.city.wallDmg ? ` ${Math.round(wallIntact(b.city) * 100)}%` : ''}${wallArchers(b.city) ? `, ${wallArchers(b.city)} archers on the walls` : ''})` : TERRAIN_DEF[b.biome] ? `Defenders ${TERRAIN_DEF[b.biome] > 0 ? '+' : ''}${Math.round(TERRAIN_DEF[b.biome] * 100)}% DEF (${TINFO[b.biome].n})` : 'Open field';
   $('#tachud').innerHTML = `<span class="chip"><i class="ico ico-swords"></i> <b>${TB.place}</b></span><span class="chip">${me === 0 ? 'Attacking' : 'Defending'}</span><span class="sub">${bonus} · up to ${b.maxRounds} rounds · a fallen General's troops flee</span>`;
   const col = side => b.units.filter(u => u.kind === 'gen' && u.side === side).map(gu => {
     const g = gu.g, pal = G.pals[g.faction], sq = squadsOf(b, gu), men = sq.reduce((a, s) => a + s.hp, 0);
@@ -1748,13 +1786,15 @@ async function playBattle(scenes) {
     for (const [x, y] of pairings(b)) {
       if (b.over) break;
       if (x.hp <= 0 || y.hp <= 0) continue;
+      if (TB.retreat) { retreatBattle(b, b.player); break; }
       const S = buildClash(b, x, y);
       if (!SKIP.round) { $('#sround').textContent = `Round ${b.round}/${b.maxRounds}`; await playScene(S); }
-      runClash(S); // the rest of the clash if it was skipped (nothing left if it was watched to the end)
+      if (!TB.retreat) runClash(S); // the rest of the clash if it was skipped (a retreat breaks off at once instead)
       const info = finishClash(S);
       for (const g of info.falls) toast(`<i class="ico ico-helmet"></i> ${g.g.name} has fallen! ${g.side === b.player ? 'Your' : 'Enemy'} troops flee.`);
+      if (TB.retreat && !b.over) { retreatBattle(b, b.player); break; }
     }
-    endRound(b);
+    aiConsiderRetreat(b); endRound(b);
   }
   $('#scene').style.display = 'none';
   endManual();
@@ -1764,7 +1804,7 @@ function endManual() {
   const won = b.winner === b.player, res = battleResults(b); sfx(won ? 'victory' : 'defeat');
   const rows = res.gens.filter(x => x.side === b.player).map(x => `<tr><td>${x.g.name}</td><td>${x.fell ? '<span style="color:var(--red)">Fallen</span>' : x.squads.length + ' squads · ' + x.squads.reduce((a, s) => a + s.hp, 0) + ' men'}</td><td>+${x.xp} XP</td></tr>`).join('');
   $('#mbox').classList.remove('wide'); $('#mbox').innerHTML = `<h3 style="font-size:26px;color:${won ? 'var(--green)' : 'var(--red)'}">${won ? 'VICTORY' : 'DEFEAT'}</h3>
-   <p class="sub">${b.timeout ? (b.player === 0 ? 'The defenders held — your attack stalls.' : 'You held — the attackers withdraw.') : won ? 'The enemy commanders are broken.' : 'Your commanders have fallen.'}</p>
+   <p class="sub">${b.retreat ? (b.retreat - 1 === b.player ? `Your army withdraws, leaving ${Math.round(RETREAT_LOSS * 100)}% of its soldiers behind.` : 'The enemy breaks off and retreats!') : b.timeout ? (b.player === 0 ? 'The defenders held — your attack stalls.' : 'You held — the attackers withdraw.') : won ? 'The enemy commanders are broken.' : 'Your commanders have fallen.'}</p>
    <table><tr><th>General</th><th>Status</th><th>XP</th></tr>${rows}</table><div class="row" style="margin-top:10px"><button class="btn gold" id="bwc">Continue</button></div>`;
   $('#modal').style.display = 'flex';
   $('#bwc').onclick = () => { $('#modal').style.display = 'none'; $('#battle').style.display = 'none'; const r = TB.res; TB = null; r(b); };
@@ -2337,6 +2377,8 @@ function playScene(S) {
     let last = performance.now(), done = false;
     const finish = () => { if (done) return; done = true; el.onpointerdown = null; $('#sban').innerHTML = ''; $('#spops').innerHTML = ''; res(); };
     $('#sskipall').onpointerdown = e => { e.stopPropagation(); SKIP.round = true; finish(); };
+    $('#sretreat').style.display = TB && TB.b && TB.b.player >= 0 ? '' : 'none';
+    $('#sretreat').onpointerdown = e => { e.stopPropagation(); if (TB) TB.retreat = true; sfx('horn'); finish(); };
     setTimeout(() => { if (!done) el.onpointerdown = finish; }, 150);
     const frame = now => {
       if (done) return;
@@ -2365,6 +2407,8 @@ const fCities = f => G.cities.filter(c => c.owner === f);
 const capitalOf = f => G.cities.find(c => c.owner === f && c.capital) || fCities(f)[0];
 
 const START_GOLD = { poor: 150, std: 320, rich: 700 };
+// difficulty: AI income and starting gold, how hard the AI presses the player, bandit raid timers, envoys' patience
+const DIFF = { easy: { inc: 0.8, gold: 250, aggr: 0.5, raid: [8, 11], dip: 0.15 }, normal: { inc: 1, gold: 320, aggr: 1, raid: [6, 9], dip: 0 }, hard: { inc: 1.3, gold: 450, aggr: 1.6, raid: [4, 7], dip: -0.1 } };
 // o: { kingdoms (2-4, player included), gold ('poor' | 'std' | 'rich'), crisis (bool) }; unused kingdom slots sit out the game
 function newGame(world, kname, o = {}) {
   const K = clamp(o.kingdoms || 4, 2, 4), gold = START_GOLD[o.gold] || START_GOLD.std;
@@ -2372,7 +2416,7 @@ function newGame(world, kname, o = {}) {
   G.factions = FACTION_DEF.map((f, i) => ({ id: i, name: i === 0 ? kname : f.name, col: f.col, lord: f.lord, gold: i === NEUTRAL ? 0 : gold, kxp: 0, klv: 1, tp: 1, techs: [], alive: i === NEUTRAL || i < K, out: i !== NEUTRAL && i >= K, scout: [] }));
   G.pals = G.factions.map(f => factionPal(f.col));
   G.crisis = o.crisis ? { next: 12 + ri(0, 4), cur: null } : null;
-  for (const F of G.factions) { F.ore = 40; F.reserve = F.id < NEUTRAL ? { infantry: 10, spear: 10 } : {}; if (F.id === BANDIT) F.alive = true; }
+  for (const F of G.factions) { F.ore = 40; F.reserve = F.id < NEUTRAL ? { infantry: 10, spear: 10 } : {}; if (F.id === BANDIT) F.alive = true; if (F.id > 0 && F.id < NEUTRAL) F.gold = Math.round(F.gold * (DIFF[o.diff] || DIFF.normal).gold / 320); }
   for (const c of G.cities) c.pop = Math.round(popMax(c) * 0.6);
   G.gens = []; GID = 1;
   for (let f = 0; f < K; f++) {
@@ -2434,7 +2478,7 @@ const reserveCap = f => 20 + fCities(f).reduce((a, c) => a + 10 + (c.barracks ? 
 const reserveTotal = f => Object.values(G.factions[f].reserve || {}).reduce((a, n) => a + n, 0);
 const mineOwner = m => tileOwner(m.y * G.W + m.x);
 const MINE_ORE = 6;
-const oreIncome = f => (G.mines || []).filter(m => mineOwner(m) === f).length * (MINE_ORE + (hasTech(f, 'mining') ? 1 : 0)) + (fCities(f).some(c => c.capital) ? 4 : 0) + fCities(f).filter(c => c.foundry).length * 3;
+const oreIncome = f => (G.mines || []).filter(m => mineOwner(m) === f).length * (MINE_ORE + (hasTech(f, 'mining') ? 1 : 0)) + (fCities(f).some(c => c.capital) ? 4 : 0) + fCities(f).filter(c => c.foundry).length * 3 + (G.factions[f].oreBonus || 0);
 // recruiting n soldiers of a type at a town: gold and ore per soldier, plus one of the town's people each
 const recruitCost = (f, type, n) => ({ gold: Math.round(TROOPS[type].cost / 10 * n * costMul(f)), ore: TROOPS[type].ore * n, pop: n });
 function canRecruit(f, c, type, n) { const F = G.factions[f], k = recruitCost(f, type, n); return troopUnlocked(f, type) && c.owner === f && F.gold >= k.gold && F.ore >= k.ore && c.pop >= n && reserveTotal(f) + n <= reserveCap(f); }
@@ -2544,8 +2588,8 @@ const BUILD = {
 };
 // construction takes a few turns: one project per town at a time, paid up front, refunded if cancelled
 const BUILD_TURNS = { market: 2, granary: 2, watchtower: 2, barracks: 3, temple: 3, foundry: 3 }, WALL_TURNS = [0, 2, 3, 4], UP_TURNS = 3;
-const projTurns = (c, k) => k === 'walls' ? WALL_TURNS[wallLvl(c) + 1] : k === 'level' ? UP_TURNS : BUILD_TURNS[k] || 2;
-const projName = (c, k) => k === 'walls' ? WALL_N[wallLvl(c) + 1] : k === 'level' ? `Level ${c.level + 1}` : BUILD[k].n;
+const projTurns = (c, k) => k === 'repair' ? ((c.wallDmg || 0) > 0.5 ? 3 : 2) : k === 'walls' ? WALL_TURNS[wallLvl(c) + 1] : k === 'level' ? UP_TURNS : BUILD_TURNS[k] || 2;
+const projName = (c, k) => k === 'repair' ? 'Wall repairs' : k === 'walls' ? WALL_N[wallLvl(c) + 1] : k === 'level' ? `Level ${c.level + 1}` : BUILD[k].n;
 function startBuild(c, k, cost) {
   const F = G.factions[c.owner]; if (c.build || F.gold < cost) return false;
   F.gold -= cost; c.build = { k, left: projTurns(c, k), total: projTurns(c, k), cost }; return true;
@@ -2553,7 +2597,7 @@ function startBuild(c, k, cost) {
 function buildTick(c) {
   if (!c.build || --c.build.left > 0) return;
   const k = c.build.k, what = projName(c, k); c.build = null;
-  if (k === 'walls') c.walls = wallLvl(c) + 1; else if (k === 'level') { c.level++; computeTerritory(); } else c[k] = true;
+  if (k === 'repair') c.wallDmg = 0; else if (k === 'walls') c.walls = wallLvl(c) + 1; else if (k === 'level') { c.level++; computeTerritory(); } else c[k] = true;
   cityCache.clear();
   if (c.owner === 0) { sfx('capture'); toast(`<i class="ico ico-castle"></i> ${c.name}: <b>${what}</b> is complete!`, 3500); logMsg(`${c.name} finished building ${what}.`); }
 }
@@ -2566,8 +2610,8 @@ function canRefit(g) { return g.status === 'field' && tileOwner(g.y * G.W + g.x)
 function occMapW() { const m = new Map(); for (const g of G.gens) if (g.status === 'field') m.set(g.y * G.W + g.x, g); return m; }
 function cityIdxMap() { const m = new Map(); for (const c of G.cities) m.set(c.y * G.W + c.x, c); return m; }
 // zones of control: the tiles around an enemy army; an army that steps into one must stop there
-function zocSet(g) { const s = new Set(), W = G.W; for (const e of G.gens) if (e.status === 'field' && e.faction !== g.faction) for (const [dx, dy] of DIRS) { const x = e.x + dx, y = e.y + dy; if (x >= 0 && y >= 0 && x < W && y < G.H) s.add(y * W + x); } return s; }
-const inZOC = (g, x, y) => G.gens.some(e => e.status === 'field' && e.faction !== g.faction && man(e.x, e.y, x, y) === 1);
+function zocSet(g) { const s = new Set(), W = G.W; for (const e of G.gens) if (e.status === 'field' && atWar(g.faction, e.faction)) for (const [dx, dy] of DIRS) { const x = e.x + dx, y = e.y + dy; if (x >= 0 && y >= 0 && x < W && y < G.H) s.add(y * W + x); } return s; }
+const inZOC = (g, x, y) => G.gens.some(e => e.status === 'field' && atWar(g.faction, e.faction) && man(e.x, e.y, x, y) === 1);
 function worldDij(g, mpMode) {
   const { W, H, N } = G, dist = new Float32Array(N).fill(1e9), par = new Int32Array(N).fill(-1), st = g.y * W + g.x;
   const occ = occMapW(), cm = cityIdxMap(), mp = g.mp, zoc = zocSet(g);
@@ -2604,12 +2648,13 @@ function worldReach(g) {
     if (best >= 0) targets.push({ ...obj, from: best, x: tx, y: ty });
   };
   if (g.mp > 0) {
-    for (const e of G.gens) if (e.status === 'field' && e.faction !== g.faction && (g.faction !== 0 || visTile(e.x, e.y))) consider(e.x, e.y, { kind: 'army', g: e });
-    for (const c of G.cities) if (c.owner !== g.faction && !armyAt(c.x, c.y)) consider(c.x, c.y, { kind: 'city', c });
+    for (const e of G.gens) if (e.status === 'field' && atWar(g.faction, e.faction) && (g.faction !== 0 || visTile(e.x, e.y))) consider(e.x, e.y, { kind: 'army', g: e });
+    for (const c of G.cities) if (c.owner !== g.faction && atWar(g.faction, c.owner) && !armyAt(c.x, c.y)) consider(c.x, c.y, { kind: 'city', c });
   }
   return { D, tiles, targets };
 }
 async function walkArmy(g, path, fast) {
+  if (path.length > 1) g.siege = null;
   for (let k = 1; k < path.length; k++) {
     const j = path[k], nx = j % G.W, ny = (j / G.W) | 0;
     const c = TINFO[G.tiles[j]].cost; if (g.mp <= 0) break;
@@ -2697,6 +2742,8 @@ async function resolveWorldBattle(attG, tgt, manual) {
 }
 function applyBattle(res, S, attG, tgt) {
   const attF = attG.faction, attWon = res.winner === 0;
+  if ((attF === 0 && attWon) || (S.defF === 0 && !attWon)) stats().wins++;
+  if (S.city && wallLvl(S.city)) S.city.wallDmg = Math.min(1, (S.city.wallDmg || 0) + 0.1 + 0.02 * S.att.reduce((a, g) => a + g.squads.length, 0)); // the assault batters the walls
   const ups = [];
   for (const x of res.gens) {
     const g = x.g;
@@ -2715,11 +2762,12 @@ function applyBattle(res, S, attG, tgt) {
     if (x.side === 0) g.mp = 0;
   }
   if (ups.length) toast('<i class="ico ico-star"></i> Level up: ' + ups.join(', '));
+  if (res.retreat === 1) for (const x of res.gens) if (x.side === 1 && !x.g.temp && x.g.status === 'field') { const dx = Math.sign(x.g.x - attG.x), dy = Math.sign(x.g.y - attG.y), ox = x.g.x, oy = x.g.y; G.gens.splice(G.gens.indexOf(x.g), 1); if (!placeGen(x.g, ox + dx * 2, oy + dy * 2)) placeGen(x.g, ox, oy); G.gens.push(x.g); x.g.mp = 0; }
   const defName = S.city ? S.city.name : tgt.g ? tgt.g.name : '?';
   addKXP(attWon ? attF : S.defF, 30); addKXP(attWon ? S.defF : attF, 6);
   for (const x of res.gens) if (x.fell && x.g.camp) {
     const wF = x.side === 0 ? S.defF : attF, W = G.factions[wF]; if (W && wF < NEUTRAL) { W.gold += 120; W.ore = (W.ore || 0) + 20; }
-    logMsg(`${W ? W.name : 'Someone'} destroyed a bandit camp.`); if (wF === 0) { sfx('capture'); toast('<i class="ico ico-skull"></i> Bandit camp destroyed! +120 gold, +20 ore', 4000); }
+    logMsg(`${W ? W.name : 'Someone'} destroyed a bandit camp.`); if (wF === 0) stats().camps++; if (wF === 0) { sfx('capture'); toast('<i class="ico ico-skull"></i> Bandit camp destroyed! +120 gold, +20 ore', 4000); }
   }
   if (attWon && S.city && attF === BANDIT) {
     const c = S.city, O = G.factions[c.owner], loot = Math.min(O.gold, 30 + 25 * c.level); O.gold -= loot; c.garrison = 0.1; c.pop = Math.floor((c.pop || 0) / 2); c.lootT = G.turn; // raiders leave a plundered town alone for 5 turns
@@ -2794,6 +2842,7 @@ async function aiTurn(f) {
   }
   // economy
   for (const c of fCities(f)) {
+    if (!c.build && !c.besieged && (c.wallDmg || 0) > 0.2 && F.gold > repairCost(c) + 40) startBuild(c, 'repair', repairCost(c));
     if (!c.build && F.gold > 420 && c.level < 5 && R() < 0.5) { const k = upCost(c); if (F.gold - k > 250) startBuild(c, 'level', k); }
     // build what the kingdom needs first: food, then happiness, ore, then the rest
     const fr = foodReport(f), want = [fr.net < 3 && 'granary', (c.happy ?? 65) < 50 && 'temple', (F.ore || 0) < 30 && 'foundry', 'market', 'barracks', 'watchtower'].filter(Boolean);
@@ -2814,7 +2863,7 @@ async function aiTurn(f) {
   for (const g of fieldGens(f)) g.defend = null;
   for (const c of fCities(f)) {
     if (armyAt(c.x, c.y)) continue;
-    const threat = G.gens.find(e => e.status === 'field' && e.faction !== f && e.faction !== NEUTRAL && !e.camp && man(e.x, e.y, c.x, c.y) <= 3); if (!threat) continue;
+    const threat = G.gens.find(e => e.status === 'field' && atWar(f, e.faction) && e.faction !== NEUTRAL && !e.camp && man(e.x, e.y, c.x, c.y) <= 3); if (!threat) continue;
     const d = fieldGens(f).filter(g => !g.defend && g.squads.length).sort((a, b) => man(a.x, a.y, c.x, c.y) - man(b.x, b.y, c.x, c.y))[0];
     if (d && man(d.x, d.y, c.x, c.y) <= worldMove(d) * 2) d.defend = c;
   }
@@ -2850,6 +2899,153 @@ function defPower(tgt, f) {
   const S = battleSides({ faction: f, x: -9, y: -9, status: 'x' }, tgt);
   return S.def.reduce((a, g) => a + armyPower(g), 0);
 }
+// ============ DIPLOMACY: war, peace and alliance between the kingdoms, with an opinion score (-100..100) ============
+// The Free Towns and bandits are always fair game. Kingdoms at peace or allied can't attack each other and ignore each
+// other's zones of control; allies share their sight. Breaking a treaty younger than 10 turns angers every court.
+const dkey = (a, b) => a < b ? a + '-' + b : b + '-' + a;
+const isKingdom = f => f >= 0 && f < NEUTRAL;
+function dipRel(a, b) { G.dip = G.dip || {}; const k = dkey(a, b); return G.dip[k] || (G.dip[k] = { s: 'war', op: 0, t: 0, ask: 0 }); }
+function atWar(a, b) { if (a === b) return false; if (!isKingdom(a) || !isKingdom(b)) return true; return dipRel(a, b).s === 'war'; }
+const allied = (a, b) => a !== b && isKingdom(a) && isKingdom(b) && dipRel(a, b).s === 'ally';
+const addOp = (a, b, n) => { const r = dipRel(a, b); r.op = clamp(r.op + n, -100, 100); };
+const kingdomPower = f => fieldGens(f).reduce((a, g) => a + armyPower(g), 0) + fCities(f).reduce((a, c) => a + 4 + c.level * 3, 0);
+const opWord = op => op <= -50 ? 'Hostile' : op <= -15 ? 'Wary' : op < 15 ? 'Neutral' : op < 50 ? 'Friendly' : 'Devoted';
+const diffCfg = () => DIFF[(G.opts && G.opts.diff) || 'normal'] || DIFF.normal;
+function setRel(a, b, s) {
+  const r = dipRel(a, b); if (r.s === s) return; r.s = s; r.t = G.turn;
+  if (s !== 'war') for (const g of G.gens) if (g.siege != null && G.cities[g.siege] && ((g.faction === a && G.cities[g.siege].owner === b) || (g.faction === b && G.cities[g.siege].owner === a))) g.siege = null;
+  const A = G.factions[a].name, B = G.factions[b].name;
+  logMsg(s === 'war' ? `${A} and ${B} are at war!` : s === 'peace' ? `${A} and ${B} made peace.` : `${A} and ${B} formed an alliance.`);
+  if (a === 0 || b === 0) { computeVis(); renderHUD(); }
+}
+function declareWar(a, b) {
+  const r = dipRel(a, b), young = r.s !== 'war' && G.turn - r.t < 10;
+  if (young) for (let f = 0; f < NEUTRAL; f++) if (f !== a && G.factions[f].alive) addOp(a, f, -30); // treachery
+  addOp(a, b, -20); setRel(a, b, 'war');
+  if (b === 0) toast(`<i class="ico ico-swords"></i> The <b>${G.factions[a].name}</b> declares war on you!`, 5000);
+}
+// how likely an AI kingdom f is to accept the player's offer
+function acceptChance(f, kind) {
+  const r = dipRel(0, f), p0 = kingdomPower(0), pf = kingdomPower(f), adj = diffCfg().dip;
+  if (kind === 'peace') return clamp(0.2 + r.op / 150 + (p0 > pf * 1.2 ? 0.3 : 0) - (pf > p0 * 1.5 ? 0.3 : 0) + Math.min(0.3, (G.turn - r.t) / 40) + adj, 0.05, 0.9);
+  if (kind === 'ally') return r.s === 'peace' && G.turn - r.t >= 5 ? clamp((r.op - 20) / 80 + adj, 0, 0.9) : 0;
+  return 0;
+}
+function diplomacyModal() {
+  const rivals = [1, 2, 3].filter(f => G.factions[f].alive && !G.factions[f].out), F = G.factions[0], p0 = kingdomPower(0);
+  let h = `<h3><i class="ico ico-handshake"></i> Diplomacy</h3><div class="sub">Peace and alliances stop the fighting between kingdoms; allies share their sight. Hold an alliance with every surviving rival for 10 turns to win an allied victory. Breaking a treaty younger than 10 turns angers every court.</div><div class="cards">`;
+  for (const f of rivals) {
+    const R2 = G.factions[f], r = dipRel(0, f), pf = kingdomPower(f), cool = r.ask > G.turn;
+    const st = r.s === 'war' ? '<b style="color:var(--red)">At war</b>' : r.s === 'peace' ? '<b>At peace</b>' : '<b style="color:var(--green)">Allied</b>';
+    const btn = (id, label, dis, title) => `<button class="btn sm" data-dip="${id}:${f}" ${dis ? 'disabled' : ''} title="${title || ''}">${label}</button>`;
+    h += `<div class="card"><h4><span class="sw" style="background:${R2.col}"></span>${R2.name}</h4><div class="sub">${st} since turn ${r.t || 1} · Opinion <b>${opWord(r.op)}</b> (${r.op > 0 ? '+' : ''}${r.op}) · ${pf > p0 * 1.25 ? 'Stronger than you' : pf < p0 * 0.8 ? 'Weaker than you' : 'About your strength'} · ${fCities(f).length} towns</div><div class="row">`
+      + (r.s === 'war' ? btn('peace', `Propose peace (${Math.round(acceptChance(f, 'peace') * 100)}%)`, cool, cool ? 'They will hear you again in a few turns' : '') : '')
+      + (r.s === 'peace' ? btn('ally', `Propose alliance (${Math.round(acceptChance(f, 'ally') * 100)}%)`, cool || acceptChance(f, 'ally') <= 0, 'Needs 5 turns of peace and a friendly opinion') + btn('war', 'Declare war', false, G.turn - r.t < 10 ? 'Breaking a young treaty angers every court' : '') : '')
+      + (r.s === 'ally' ? btn('break', 'End alliance', false) : '')
+      + btn('gift', 'Gift 100g (+15)', F.gold < 100) + btn('tribute', 'Demand tribute', cool, pf * 1.6 < p0 ? 'They fear you' : 'They are unlikely to pay')
+      + `</div></div>`;
+  }
+  openModal(h + '</div>'); $('#mbox').classList.add('wide');
+  document.querySelectorAll('[data-dip]').forEach(b => b.onclick = () => {
+    const [act, fs] = b.dataset.dip.split(':'), f = +fs, r = dipRel(0, f), N = G.factions[f].name;
+    if (act === 'peace') { r.ask = G.turn + 3; if (R() < acceptChance(f, 'peace')) { setRel(0, f, 'peace'); addOp(0, f, 10); sfx('capture'); toast(`The ${N} accept peace.`); } else { addOp(0, f, -3); toast(`The ${N} refuse your offer of peace.`); } }
+    else if (act === 'ally') { r.ask = G.turn + 3; if (R() < acceptChance(f, 'ally')) { setRel(0, f, 'ally'); sfx('capture'); toast(`The ${N} join you in alliance!`); } else toast(`The ${N} decline an alliance for now.`); }
+    else if (act === 'war') declareWar(0, f);
+    else if (act === 'break') { setRel(0, f, 'peace'); addOp(0, f, -25); }
+    else if (act === 'gift') { G.factions[0].gold -= 100; G.factions[f].gold += 100; addOp(0, f, 15); sfx('coin'); }
+    else if (act === 'tribute') { r.ask = G.turn + 3; const p0 = kingdomPower(0), pf = kingdomPower(f), T = G.factions[f]; if (p0 > pf * 1.6) { const pay = Math.min(T.gold, 80 + 20 * fCities(f).length); T.gold -= pay; G.factions[0].gold += pay; addOp(0, f, -25); sfx('coin'); toast(`The ${N} pay ${pay} gold in tribute.`); } else { addOp(0, f, -10); toast(`The ${N} scoff at your demand.`); if (r.s === 'peace' && R() < 0.3) declareWar(f, 0); } }
+    renderHUD(); diplomacyModal();
+  });
+}
+// AI diplomacy once per round: opinions drift, rival kingdoms make and break treaties, and court the player
+async function diplomacyTurn() {
+  const ks = [0, 1, 2, 3].filter(f => G.factions[f].alive && !G.factions[f].out);
+  for (const a of ks) for (const b of ks) if (a < b) {
+    const r = dipRel(a, b); r.op += r.op > 0 ? -1 : r.op < 0 ? 1 : 0; if (r.s === 'war') addOp(a, b, -1);
+    for (const c of ks) if (c !== a && c !== b && atWar(a, c) && atWar(b, c)) addOp(a, b, 1); // a common enemy
+    if (a === 0) continue;
+    const age = G.turn - r.t;
+    if (r.s === 'war' && age > 8 && R() < 0.06) setRel(a, b, 'peace');
+    else if (r.s === 'peace' && r.op > 50 && R() < 0.05) setRel(a, b, 'ally');
+    else if (r.s !== 'war' && age > 12 && r.op < 5 && R() < 0.04) declareWar(R() < 0.5 ? a : b, R() < 0.5 ? b : a);
+  }
+  for (const f of ks) {
+    if (f === 0) continue; const r = dipRel(0, f), p0 = kingdomPower(0), pf = kingdomPower(f), age = G.turn - r.t, N = G.factions[f].name;
+    if (r.s === 'war' && age > 8 && pf < p0 * 0.8 && r.ask <= G.turn && R() < 0.25) {
+      r.ask = G.turn + 5; const offer = Math.min(G.factions[f].gold, 40 + 10 * fCities(f).length);
+      const ok = await choiceModal(`<i class="ico ico-handshake"></i> Envoy of the ${N}`, `The ${N} sue for peace${offer ? `, offering <b>${offer} gold</b>` : ''}.`, [['Accept peace', 'gold'], ['Refuse', '']]);
+      if (ok === 0) { setRel(0, f, 'peace'); G.factions[f].gold -= offer; G.factions[0].gold += offer; addOp(0, f, 10); } else addOp(0, f, -5);
+    } else if (r.s === 'peace' && r.op > 45 && age >= 5 && r.ask <= G.turn && R() < 0.1) {
+      r.ask = G.turn + 5;
+      const ok = await choiceModal(`<i class="ico ico-handshake"></i> Envoy of the ${N}`, `The ${N} propose an alliance: you would share sight and never attack each other.`, [['Accept alliance', 'gold'], ['Decline', '']]);
+      if (ok === 0) setRel(0, f, 'ally'); else addOp(0, f, -5);
+    } else if (r.s === 'peace' && age > 10 && pf > p0 * 1.6 && r.op < 0 && R() < 0.15 * diffCfg().aggr) declareWar(f, 0);
+  }
+}
+// a small reusable choice dialog: returns the index of the chosen option
+function choiceModal(title, text, opts) {
+  return new Promise(res => {
+    $('#mbox').classList.remove('wide'); $('#mbox').innerHTML = `<h3>${title}</h3><p>${text}</p><div class="row">${opts.map(([label, cls, dis], i) => `<button class="btn ${cls || ''}" data-ch="${i}" ${dis ? 'disabled' : ''}>${label}</button>`).join('')}</div>`;
+    $('#modal').style.display = 'flex';
+    document.querySelectorAll('[data-ch]').forEach(b => b.onclick = () => { $('#modal').style.display = 'none'; res(+b.dataset.ch); });
+  });
+}
+// ============ EVENTS: every few turns a story card asks the player to choose ============
+const stats = () => G.stats || (G.stats = { wins: 0, camps: 0, techs: 0 });
+const myTown = () => pick(fCities(0));
+const strongestGen = () => fieldGens(0).filter(g => !g.captain).sort((a, b) => b.lvl - a.lvl)[0];
+const EVENTS = [
+  { t: 'Fever in the Villages', ok: () => fCities(0).length, run: c => [`A fever spreads through the villages around <b>${c.name}</b>. The people beg for healers.`, [['Send healers (−60g)', () => { G.factions[0].gold -= 60; c.happy = Math.min(100, (c.happy ?? 65) + 12); }, F => F.gold >= 60], ['Quarantine the town', () => { c.pop = Math.max(0, (c.pop || 0) - 6); }], ['Do nothing', () => { c.happy = Math.max(0, (c.happy ?? 65) - 12); c.pop = Math.max(0, (c.pop || 0) - 10); }]]], arg: myTown },
+  { t: 'Sellswords at the Gate', ok: () => reserveTotal(0) + 12 <= reserveCap(0), run: () => [`A band of 12 hardened sellswords offers its blades.`, [['Hire them (−90g)', () => { G.factions[0].gold -= 90; const t = troopUnlocked(0, 'blade') ? 'blade' : 'infantry'; G.factions[0].reserve[t] = (G.factions[0].reserve[t] || 0) + 12; }, F => F.gold >= 90], ['Send them away', () => { }]]] },
+  { t: 'A Merchant Caravan', ok: () => true, run: () => [`A rich caravan crosses your lands, heavy with ore and spices.`, [['Buy ore (−80g, +30 ore)', () => { G.factions[0].gold -= 80; G.factions[0].ore += 30; }, F => F.gold >= 80], ['Tax them (+70g)', () => { G.factions[0].gold += 70; for (const c of fCities(0)) c.happy = Math.max(0, (c.happy ?? 65) - 3); }], ['Wave them through', () => { for (const c of fCities(0)) c.happy = Math.min(100, (c.happy ?? 65) + 4); }]]] },
+  { t: 'Bountiful Harvest', ok: () => true, run: () => [`The granaries overflow after a golden summer.`, [['Store it (+60 food)', () => { G.factions[0].food = (G.factions[0].food || 0) + 60; }], ['Hold a feast (+8 happiness everywhere)', () => { for (const c of fCities(0)) c.happy = Math.min(100, (c.happy ?? 65) + 8); }]]] },
+  { t: 'A Deserter\'s Map', ok: () => [1, 2, 3].some(f => G.factions[f].alive && !G.factions[f].out), run: () => { const f = pick([1, 2, 3].filter(f => G.factions[f].alive && !G.factions[f].out)), cap = capitalOf(f); return [`A deserter from the ${G.factions[f].name} offers maps of their heartland.`, [['Pay him (−40g): reveal their capital', () => { G.factions[0].gold -= 40; if (cap) for (let dy = -7; dy <= 7; dy++) for (let dx = -7; dx <= 7; dx++) { const x = cap.x + dx, y = cap.y + dy; if (x >= 0 && y >= 0 && x < G.W && y < G.H) G.seen[y * G.W + x] = 1; } computeVis(); }, F => F.gold >= 40], ['Send him back (+opinion)', () => addOp(0, f, 10)]]]; } },
+  { t: 'A Rich Vein', ok: () => fCities(0).length, run: c => [`Prospectors near <b>${c.name}</b> strike a rich vein of iron.`, [['Invest (−100g, +2 ore every turn)', () => { G.factions[0].gold -= 100; G.factions[0].oreBonus = (G.factions[0].oreBonus || 0) + 2; }, F => F.gold >= 100], ['Sell the rights (+110g)', () => { G.factions[0].gold += 110; }]]], arg: myTown },
+  { t: 'Refugees', ok: () => fCities(0).length, run: c => [`Refugees fleeing the wars arrive at <b>${c.name}</b>.`, [['Welcome them (+15 people, −20 food)', () => { c.pop = Math.min(popMax(c) + 15, (c.pop || 0) + 15); G.factions[0].food = Math.max(0, (G.factions[0].food || 0) - 20); }], ['Turn them away', () => { c.happy = Math.max(0, (c.happy ?? 65) - 6); }]]], arg: myTown },
+  { t: 'Fire!', ok: () => fCities(0).length, run: c => [`Fire sweeps through the market of <b>${c.name}</b>.`, [['Rebuild at once (−70g)', () => { G.factions[0].gold -= 70; }, F => F.gold >= 70], ['Let the people rebuild', () => { c.happy = Math.max(0, (c.happy ?? 65) - 10); c.pop = Math.max(0, (c.pop || 0) - 8); }]]], arg: myTown },
+  { t: 'A Wandering Scholar', ok: () => true, run: () => [`A famed scholar seeks a patron for her studies.`, [['Fund her (−110g, +1 Tech Point)', () => { G.factions[0].gold -= 110; G.factions[0].tp++; }, F => F.gold >= 110], ['Decline', () => { }]]] },
+  { t: 'Drill Season', ok: () => fieldGens(0).some(g => g.squads.length), run: () => { const g = fieldGens(0).filter(g => g.squads.length).sort((a, b) => b.squads.length - a.squads.length)[0]; return [`Old sergeants offer to drill the army of <b>${g.name}</b>.`, [['Pay for drills (−60g, +12 squad XP)', () => { G.factions[0].gold -= 60; for (const s of g.squads) s.xp = (s.xp || 0) + 12; }, F => F.gold >= 60], ['Not now', () => { }]]]; } },
+  { t: 'A Rival\'s Challenge', ok: () => !!strongestGen(), run: () => { const g = strongestGen(); return [`An enemy champion challenges <b>${g.name}</b> to single combat.`, [['Accept the duel', () => { if (R() < 0.6) { gainXP(g, 150); toast(`${g.name} wins the duel! +150 XP`); } else { g.status = 'wounded'; g.wound = 2; g.x = g.y = -1; toast(`${g.name} is wounded in the duel.`); } }], ['Refuse (−5 happiness)', () => { for (const c of fCities(0)) c.happy = Math.max(0, (c.happy ?? 65) - 5); }]]]; } },
+  { t: 'The Bandit King\'s Offer', ok: () => G.gens.some(g => g.camp && g.status === 'field'), run: () => [`The bandit king offers to spare your lands — for a price.`, [['Pay (−80g, no raids on you for 10 turns)', () => { G.factions[0].gold -= 80; G.factions[0].banditPact = G.turn + 10; }, F => F.gold >= 80], ['Refuse', () => { }]]] },
+];
+async function maybeEvent() {
+  if (G.nextEvent == null) G.nextEvent = G.turn + 2 + ri(1, 3);
+  if (G.turn < G.nextEvent || !G.factions[0].alive) return;
+  G.nextEvent = G.turn + 4 + ri(0, 3);
+  const E = pick(EVENTS.filter(e => e.ok())); if (!E) return;
+  const [text, opts] = E.run(E.arg ? E.arg() : undefined), F = G.factions[0];
+  sfx('page');
+  const k = await choiceModal(`<i class="ico ico-scroll"></i> ${E.t}`, text, opts.map(([label, , can], i) => [label, i === 0 ? 'gold' : '', can && !can(F)]));
+  opts[k][1](); logMsg(`${E.t}: ${opts[k][0].replace(/ \(.*\)$/, '')}.`); renderHUD(); renderPanel();
+}
+// ============ OBJECTIVES: up to three goals at a time, each with a deadline and a reward ============
+const OBJ_KINDS = {
+  capture: () => { const cap = capitalOf(0); const c = G.cities.filter(c => c.owner !== 0 && (c.owner === NEUTRAL || atWar(0, c.owner)) && G.seen && G.seen[c.y * G.W + c.x]).sort((a, b) => man(a.x, a.y, cap.x, cap.y) - man(b.x, b.y, cap.x, cap.y))[0]; return c && { text: `Capture ${c.name}`, cid: c.id, due: 12, reward: { gold: 150 + 30 * c.level } }; },
+  camp: () => G.gens.some(g => g.camp && g.status === 'field') && { text: 'Destroy a bandit camp', base: stats().camps, due: 15, reward: { gold: 120, ore: 20 } },
+  towns: () => ({ text: `Rule ${fCities(0).length + 2} towns`, n: fCities(0).length + 2, due: 16, reward: { gold: 100, tp: 1 } }),
+  build: () => { const k = Object.keys(BUILD).find(k => !fCities(0).some(c => c[k]) && fCities(0).some(c => c.level >= BUILD[k].lv)); return k && { text: `Build a ${BUILD[k].n}`, b: k, due: 10, reward: { gold: 80, ore: 10 } }; },
+  wins: () => ({ text: 'Win 2 battles', base: stats().wins, n: 2, due: 10, reward: { gold: 100 } }),
+  tech: () => ({ text: 'Research 2 technologies', base: stats().techs, n: 2, due: 14, reward: { tp: 1 } }),
+};
+const objDone = o => o.k === 'capture' ? G.cities[o.cid] && G.cities[o.cid].owner === 0 : o.k === 'camp' ? stats().camps > o.base : o.k === 'towns' ? fCities(0).length >= o.n : o.k === 'build' ? fCities(0).some(c => c[o.b]) : o.k === 'wins' ? stats().wins - o.base >= o.n : o.k === 'tech' ? stats().techs - o.base >= o.n : false;
+const objProgress = o => o.k === 'wins' ? `${Math.min(o.n, stats().wins - o.base)}/${o.n}` : o.k === 'tech' ? `${Math.min(o.n, stats().techs - o.base)}/${o.n}` : o.k === 'towns' ? `${fCities(0).length}/${o.n}` : '';
+const rewardText = r => [r.gold && `${r.gold} gold`, r.ore && `${r.ore} ore`, r.tp && `${r.tp} Tech Point`].filter(Boolean).join(', ');
+function objectivesTick() {
+  G.objs = G.objs || []; const F = G.factions[0];
+  for (const o of G.objs.slice()) {
+    if (objDone(o)) { F.gold += o.reward.gold || 0; F.ore += o.reward.ore || 0; F.tp += o.reward.tp || 0; G.objs.splice(G.objs.indexOf(o), 1); sfx('capture'); toast(`<i class="ico ico-check"></i> Objective complete: <b>${o.text}</b> — ${rewardText(o.reward)}`, 4500); logMsg(`Objective complete: ${o.text}.`); }
+    else if (G.turn > o.due) { G.objs.splice(G.objs.indexOf(o), 1); toast(`<i class="ico ico-alert"></i> Objective failed: ${o.text}`, 3500); }
+  }
+  if (G.objs.length < 3 && G.turn >= (G.nextObj || 0)) {
+    const kinds = Object.keys(OBJ_KINDS).filter(k => !G.objs.some(o => o.k === k));
+    for (const k of kinds.sort(() => R() - 0.5)) { const o = OBJ_KINDS[k](); if (o) { o.k = k; o.due = G.turn + o.due; G.objs.push(o); toast(`<i class="ico ico-scroll"></i> New objective: <b>${o.text}</b> by turn ${o.due}`, 4000); break; } }
+    G.nextObj = G.turn + 3;
+  }
+}
+function objectivesModal() {
+  const L = (G.objs || []).map(o => `<div class="sq"><i class="ico ico-scroll"></i><span class="t">${o.text} ${objProgress(o) ? `<span class="sub">(${objProgress(o)})</span>` : ''}</span><span class="sub" style="flex:1">by turn ${o.due} (${o.due - G.turn} left) · reward: ${rewardText(o.reward)}</span></div>`).join('');
+  openModal(`<h3><i class="ico ico-scroll"></i> Objectives</h3><div class="sub">Your court sets goals as the war unfolds; new ones arrive every few turns.</div>${L || '<p class="sub">No objectives right now — new ones arrive soon.</p>'}`);
+}
 // ============ BANDITS: camps in the wilds send raiders against the kingdoms; destroy a camp for its loot ============
 function placeBanditCamps() {
   const W = G.W, want = Math.max(2, Math.round(G.N / 1600)), cand = [];
@@ -2871,7 +3067,7 @@ async function banditTurn() {
   for (const camp of G.gens.filter(g => g.camp && g.status === 'field')) {
     camp.mp = 0;
     if (--camp.timer > 0 || G.turn < 4) continue;
-    camp.timer = 6 + ri(0, 3);
+    camp.timer = ri(...diffCfg().raid);
     if (G.gens.filter(r => r.home === camp.id && r.status === 'field').length >= 2) continue;
     const spot = DIRS.map(([dx, dy]) => [camp.x + dx, camp.y + dy]).find(([x, y]) => x >= 0 && y >= 0 && x < G.W && y < G.H && TINFO[G.tiles[y * G.W + x]].cost < 99 && !armyAt(x, y) && !cityAt(x, y));
     if (!spot) continue;
@@ -2898,16 +3094,17 @@ async function aiArmy(g, F) {
     const my = armyPower(g); let bs = 1e9;
     const cands = [];
     const band = g.faction === BANDIT; // raiders go after the kingdoms only, never the Free Towns
-    for (const e of G.gens) if (e.status === 'field' && e.faction !== g.faction && (!band || e.faction < NEUTRAL)) cands.push({ kind: 'army', g: e, x: e.x, y: e.y });
-    for (const c of G.cities) if (c.owner !== g.faction && !armyAt(c.x, c.y) && (!band || (c.owner < NEUTRAL && !(c.lootT && G.turn - c.lootT < 5)))) cands.push({ kind: 'city', c, x: c.x, y: c.y });
+    for (const e of G.gens) if (e.status === 'field' && atWar(g.faction, e.faction) && (!band || (e.faction < NEUTRAL && !(e.faction === 0 && G.factions[0].banditPact > G.turn)))) cands.push({ kind: 'army', g: e, x: e.x, y: e.y });
+    for (const c of G.cities) if (c.owner !== g.faction && atWar(g.faction, c.owner) && !armyAt(c.x, c.y) && (!band || (c.owner < NEUTRAL && !(c.lootT && G.turn - c.lootT < 5) && !(c.owner === 0 && G.factions[0].banditPact > G.turn)))) cands.push({ kind: 'city', c, x: c.x, y: c.y });
     for (const t of cands) {
       const [fi, fd] = adjBest(t.x, t.y); if (fi < 0 || fd > 1e8) continue;
       const dp = defPower(t, g.faction); const ratio = my / Math.max(1, dp);
-      if (ratio < 0.75 && fd < 6) continue;
+      const siegeable = t.kind === 'city' && wallLvl(t.c) && ratio >= 0.45 && g.faction !== BANDIT;
+      if (ratio < 0.75 && fd < 6 && !siegeable) continue;
       // coordinated attacks: targets that other friendly armies are already near score better; the player draws more fire as the game goes on
       const allies = G.gens.filter(o => o !== g && o.status === 'field' && o.faction === g.faction && man(o.x, o.y, t.x, t.y) <= 3).length;
       const owner = t.kind === 'city' ? t.c.owner : t.g.faction;
-      let sc = fd - allies * 2.5 - (owner === 0 ? Math.min(5, G.turn / 12) : 0) + (ratio < 1 ? (1 - ratio) * 25 : 0) - (t.kind === 'city' ? 3 : 0) - (t.kind === 'city' && t.c.owner === NEUTRAL && G.turn < 25 ? 2 : 0) - (t.kind === 'city' && t.c.capital ? 2 : 0);
+      let sc = fd - allies * 2.5 - (owner === 0 ? Math.min(5, G.turn / 12) * diffCfg().aggr : 0) + (ratio < 1 ? (1 - ratio) * 25 : 0) - (t.kind === 'city' ? 3 : 0) - (t.kind === 'city' && t.c.owner === NEUTRAL && G.turn < 25 ? 2 : 0) - (t.kind === 'city' && t.c.capital ? 2 : 0);
       if (sc < bs) { bs = sc; goal = { i: fi, attack: t, ratio }; }
     }
   }
@@ -2922,7 +3119,9 @@ async function aiArmy(g, F) {
     await walkArmy(g, path, true);
     if (vis) await sleep(30);
   }
-  if (goal.attack && g.status === 'field' && g.mp > 0 && g.y * W + g.x === goal.i && goal.ratio >= 0.75) {
+  // a strong walled town: settle in for a siege until the walls are down, then storm it
+  if (goal.attack && goal.attack.kind === 'city' && g.status === 'field' && g.y * W + g.x === goal.i && wallLvl(goal.attack.c) && g.faction !== BANDIT && goal.ratio < 1.1 && wallIntact(goal.attack.c) > 0.35) { g.siege = goal.attack.c.id; g.mp = 0; return; }
+  if (goal.attack && g.status === 'field' && g.mp > 0 && g.y * W + g.x === goal.i && (goal.ratio >= 0.75 || (goal.attack.kind === 'city' && wallIntact(goal.attack.c) <= 0.35))) {
     const t = goal.attack;
     if (t.kind === 'army' && (t.g.status !== 'field' || t.g.x !== t.x || t.g.y !== t.y)) return;
     if (t.kind === 'city' && (t.c.owner === g.faction || armyAt(t.x, t.y))) return;
@@ -2931,7 +3130,8 @@ async function aiArmy(g, F) {
     let manual = false;
     if (vsPlayer) {
       centerOn(t.x, t.y);
-      manual = await askDefend(g, t);
+      const ch = await askDefend(g, t); manual = ch === 'cmd';
+      if (ch === 'flee') { fleeArmy(t.g, g); g.mp = 0; toast(`${t.g.name} falls back, losing ${Math.round(RETREAT_LOSS * 100)}% of the army.`); renderHUD(); return; }
     }
     await resolveWorldBattle(g, t, manual);
     renderHUD();
@@ -2940,13 +3140,21 @@ async function aiArmy(g, F) {
 function askDefend(g, t) {
   return new Promise(res => {
     const what = t.kind === 'city' ? `your city <b>${t.c.name}</b>` : `your general <b>${t.g.name}</b>`;
+    const canFlee = t.kind === 'army' && !cityAt(t.x, t.y);
     $('#mbox').classList.remove('wide'); $('#mbox').innerHTML = `<h3 style="color:var(--red)"><i class="ico ico-alert"></i> Under Attack!</h3><div class="ph"></div><p><b>${g.name}</b> of the ${G.factions[g.faction].name} (${g.cls} Lv${g.lvl}, ${g.squads.length} squads) attacks ${what}!</p>
-     <div class="row"><button class="btn gold" id="adCmd"><i class="ico ico-swords"></i> Defend!</button><button class="btn" id="adAuto"><i class="ico ico-clash"></i> Quick Resolve</button></div>`;
+     <div class="row"><button class="btn gold" id="adCmd"><i class="ico ico-swords"></i> Defend!</button><button class="btn" id="adAuto"><i class="ico ico-clash"></i> Quick Resolve</button>${canFlee ? `<button class="btn red" id="adFlee" title="Avoid the battle: the army falls back but loses a quarter of its soldiers"><i class="ico ico-left"></i> Retreat</button>` : ''}</div>`;
     $('#mbox .ph').appendChild(portraitImg(g, 64));
     $('#modal').style.display = 'flex';
-    $('#adCmd').onclick = () => { $('#modal').style.display = 'none'; res(true); };
-    $('#adAuto').onclick = () => { $('#modal').style.display = 'none'; res(false); };
+    $('#adCmd').onclick = () => { $('#modal').style.display = 'none'; res('cmd'); };
+    $('#adAuto').onclick = () => { $('#modal').style.display = 'none'; res('auto'); };
+    if (canFlee) $('#adFlee').onclick = () => { $('#modal').style.display = 'none'; res('flee'); };
   });
+}
+// an army that avoids a fight falls back two tiles from the attacker and leaves a quarter of its soldiers behind
+function fleeArmy(g, from) {
+  for (const s of g.squads) s.hp = Math.max(0, s.hp - Math.ceil(s.hp * RETREAT_LOSS)); g.squads = g.squads.filter(s => s.hp > 0);
+  const ox = g.x, oy = g.y, dx = Math.sign(g.x - from.x), dy = Math.sign(g.y - from.y); G.gens.splice(G.gens.indexOf(g), 1);
+  if (!placeGen(g, ox + dx * 2, oy + dy * 2)) placeGen(g, ox, oy); G.gens.push(g); g.mp = 0; computeVis();
 }
 
 // ============ TURN FLOW ============
@@ -2955,6 +3163,7 @@ async function endTurn() {
   for (let f = 1; f < 4; f++) { await aiTurn(f); if (checkEndGame()) { UI.busy = false; return; } }
   await banditTurn(); if (checkEndGame()) { UI.busy = false; return; }
   await prisonerTurn();
+  await diplomacyTurn();
   // economy
   const terrCount = new Array(5).fill(0); for (let i = 0; i < G.N; i++) { const o = tileOwner(i); if (o >= 0) terrCount[o]++; }
   for (let f = 0; f < 4; f++) {
@@ -2962,17 +3171,19 @@ async function endTurn() {
     researchTick(f);
     F.ore = (F.ore || 0) + oreIncome(f);
     empireTick(f); if (!F.alive) continue;
-    const rep = incomeReport(f); F.gold += rep.net;
+    const rep = incomeReport(f); F.gold += f !== 0 && rep.net > 0 ? Math.round(rep.net * diffCfg().inc) : rep.net;
     if (F.gold < 0) { F.gold = 0; for (const g of fieldGens(f)) for (const s of g.squads) s.hp = Math.max(1, s.hp - 1); if (f === 0) toast('<i class="ico ico-alert"></i> Treasury empty! Unpaid troops are deserting.'); }
     addKXP(f, Math.floor(terrCount[f] / 7));
   }
-  for (const c of G.cities) { buildTick(c); c.garrison = Math.min(1, c.garrison + 0.12 + (c.barracks ? 0.08 : 0)); c.pop = Math.min(popMax(c), (c.pop || 0) + popRegen(c)); }
+  siegeTick();
+  for (const c of G.cities) { buildTick(c); if (!c.besieged) c.garrison = Math.min(1, c.garrison + 0.12 + (c.barracks ? 0.08 : 0)); c.pop = Math.min(popMax(c), (c.pop || 0) + popRegen(c)); }
   for (const g of G.gens) if (g.status === 'wounded') { g.wound--; if (g.wound <= 0) { const cap = capitalOf(g.faction); if (cap && placeGen(g, cap.x, cap.y)) { if (g.faction === 0) toast(`${g.name} has recovered and returns to ${cap.name}.`); } else g.wound = 1; } }
   G.turn++;
   crisisTick();
   for (const g of G.gens) if (g.status === 'field') g.mp = worldMove(g);
   computeTerritory();
   UI.busy = false; $('#bEnd').disabled = false;
+  objectivesTick(); await maybeEvent();
   saveGame(); renderHUD(); renderPanel(); checkEndGame();
   const nx = fieldGens(0).find(g => g.mp > 0); if (nx) { centerOn(nx.x, nx.y); selectArmy(nx); }
 }
@@ -2981,18 +3192,25 @@ function checkEndGame() {
   if (ended) return true;
   if (fCities(0).length === 0) { ended = true; showEnd(false); return true; }
   if ([1, 2, 3].every(f => !G.factions[f].alive)) { ended = true; showEnd(true); return true; }
+  const alive = [1, 2, 3].filter(f => G.factions[f].alive && !G.factions[f].out);
+  if (alive.length && alive.every(f => allied(0, f) && G.turn - dipRel(0, f).t >= 10)) { ended = true; showEnd(true, true); return true; }
   return false;
 }
-function showEnd(win) {
+function showEnd(win, allies) {
   sfx(win ? 'victory' : 'defeat');
-  $('#mbox').classList.remove('wide'); $('#mbox').innerHTML = `<h3 style="font-size:30px;color:${win ? 'var(--green)' : 'var(--red)'}">${win ? 'THE REALM IS UNITED' : 'YOUR KINGDOM HAS FALLEN'}</h3><p>${win ? `All rival thrones have fallen to the ${G.factions[0].name} in ${G.turn} turns.` : 'The last of your cities has been taken.'}</p><div class="row"><button class="btn gold" id="endNew">New Game</button></div>`;
-  $('#modal').style.display = 'flex'; try { localStorage.removeItem(SAVE_KEY); } catch (e) { }
+  $('#mbox').classList.remove('wide'); $('#mbox').innerHTML = `<h3 style="font-size:30px;color:${win ? 'var(--green)' : 'var(--red)'}">${win ? (allies ? 'AN ALLIED REALM' : 'THE REALM IS UNITED') : 'YOUR KINGDOM HAS FALLEN'}</h3><p>${win ? (allies ? `Every surviving kingdom stands with the ${G.factions[0].name} after ${G.turn} turns of peace and war.` : `All rival thrones have fallen to the ${G.factions[0].name} in ${G.turn} turns.`) : 'The last of your cities has been taken.'}</p><div class="row"><button class="btn gold" id="endNew">New Game</button></div>`;
+  $('#modal').style.display = 'flex'; try { localStorage.removeItem(slotKey(G.slot || 1)); } catch (e) { }
   $('#endNew').onclick = () => location.reload();
 }
-function saveGame() { try { const o = Object.assign({}, G, { pals: undefined, terr: undefined, GID }); localStorage.setItem(SAVE_KEY, JSON.stringify(o)); } catch (e) { } }
-function loadGame() {
+// three save slots; the game autosaves into its slot every turn
+const SLOTS = 3, slotKey = n => 'cc_save_s' + n;
+function migrateSave() { try { const old = localStorage.getItem(SAVE_KEY); if (old && !localStorage.getItem(slotKey(1))) localStorage.setItem(slotKey(1), old); if (old) localStorage.removeItem(SAVE_KEY); } catch (e) { } }
+function slotInfo(n) { try { const s = localStorage.getItem(slotKey(n)); if (!s) return null; const o = JSON.parse(s); return { name: o.factions[0].name, turn: o.turn, at: o.savedAt || 0, size: o.W + '×' + o.H, towns: o.cities.filter(c => c.owner === 0).length, diff: (o.opts && o.opts.diff) || 'normal' }; } catch (e) { return null; } }
+const latestSlot = () => { let best = 0, bt = -1; for (let n = 1; n <= SLOTS; n++) { const i = slotInfo(n); if (i && i.at > bt) { bt = i.at; best = n; } } return best; };
+function saveGame() { try { G.slot = G.slot || 1; G.savedAt = Date.now(); const o = Object.assign({}, G, { pals: undefined, terr: undefined, GID }); localStorage.setItem(slotKey(G.slot), JSON.stringify(o)); } catch (e) { } }
+function loadGame(n) {
   try {
-    const s = localStorage.getItem(SAVE_KEY); if (!s) return false; const o = JSON.parse(s);
+    n = n || latestSlot(); const s = n && localStorage.getItem(slotKey(n)); if (!s) return false; const o = JSON.parse(s); o.slot = n;
     G = o; GID = o.GID || 1000; G.pals = G.factions.map(f => factionPal(f.col));
     for (const g of G.gens) { g.ax = g.x; g.ay = g.y; skillsOf(g); }
     computeTerritory(); ensureEconomy(); if (!G.gens.some(g => g.camp)) placeBanditCamps();
@@ -3075,7 +3293,7 @@ function drawWorld(ts) {
     const dpr = window.devicePixelRatio || 1; ctx.font = `${Math.round(15 * dpr)}px 'Jersey 15',monospace`; ctx.textAlign = 'center';
     for (const c of G.cities) {
       const sx = (c.x * WT + WT / 2) * S - ox, sy = (c.y * WT + WT) * S - oy + 13 * dpr; if (sx < -100 || sy < -20 || sx > wcv.width + 100 || sy > wcv.height + 20 || (G.seen && !G.seen[c.y * G.W + c.x])) continue;
-      const lbl = (c.capital ? '♛ ' : '') + c.name + ' ' + c.level;
+      const lbl = (c.besieged ? '⚔ ' : '') + (c.capital ? '♛ ' : '') + c.name + ' ' + c.level;
       ctx.lineWidth = 3 * dpr; ctx.strokeStyle = 'rgba(0,0,0,.85)'; ctx.strokeText(lbl, sx, sy); ctx.fillStyle = c.owner === NEUTRAL ? '#e8e0c8' : G.pals[c.owner].light; ctx.fillText(lbl, sx, sy);
     }
     // General name plates: name over the head, the army's HP (soldiers left / full strength) as a bar beneath it
@@ -3135,14 +3353,14 @@ function nextArmy() {
 
 // ============ HUD & PANELS ============
 function renderHUD() {
-  if (!G) return; const F = G.factions[0], rep = incomeReport(0);
+  if (!G) return; setTimeout(() => { const ho = $('#hObj'); if (ho) ho.onclick = () => !UI.busy && objectivesModal(); }, 0); const F = G.factions[0], rep = incomeReport(0);
   const prev = kneed(F.klv - 1), next = kneed(F.klv), pct = clamp((F.kxp - prev) / (next - prev) * 100, 0, 100);
   setTimeout(layoutVars, 0);
   $('#hud').innerHTML = `<span class="chip"><span class="sw" style="background:${F.col}"></span><b>${F.name}</b></span>
   <span class="chip"><i class="ico ico-crown"></i> Lv <b>${F.klv}</b> <span class="xpbar"><i style="width:${pct}%"></i></span></span>
   <span class="chip"><i class="ico ico-coins"></i> <b>${F.gold}</b> <span style="color:${rep.net >= 0 ? 'var(--green)' : 'var(--red)'}">${rep.net >= 0 ? '+' : ''}${rep.net}</span></span>
   <span class="chip"><i class="ico ico-helmet"></i> <b>${genCount(0)}</b>/${genCap(0)}</span><span class="chip" title="Ore (+per turn)"><i class="ico ico-rocks"></i> <b>${F.ore || 0}</b> <span style="color:var(--green)">+${oreIncome(0)}</span></span>${(() => { const fr = foodReport(0); return `<span class="chip" title="Food (+produced -eaten per turn)" style="${F.starving ? 'box-shadow:0 0 0 2px var(--red)' : ''}"><i class="ico ico-grass"></i> <b>${F.food ?? 0}</b> <span style="color:${fr.net >= 0 ? 'var(--green)' : 'var(--red)'}">${fr.net >= 0 ? '+' : ''}${fr.net}</span></span>`; })()}<span class="chip" title="Reserve troops / capacity"><i class="ico ico-people"></i> <b>${reserveTotal(0)}</b>/${reserveCap(0)}</span><span class="chip"><i class="ico ico-castle"></i> <b>${fCities(0).length}</b></span>
-  <span class="chip" style="${F.tp && !F.res ? 'box-shadow:0 0 0 2px #fff,0 0 0 4px var(--green)' : ''}" title="${F.res ? 'Researching ' + TECH[F.res.id].n : 'Tech Points'}"><i class="ico ico-scroll"></i> <b>${F.tp}</b> TP${F.res ? ` · ${TECH[F.res.id].icon} ${F.res.left}t` : ''}</span><span class="chip">Turn <b>${G.turn}</b></span>${G.crisis && G.crisis.cur ? `<span class="chip" title="${CRISES[G.crisis.cur.k].d}"><i class="ico ico-${CRISES[G.crisis.cur.k].ico}"></i> <b style="color:var(--red)">${CRISES[G.crisis.cur.k].n}</b> ${G.crisis.cur.left} turns</span>` : ''}`;
+  <span class="chip" style="${F.tp && !F.res ? 'box-shadow:0 0 0 2px #fff,0 0 0 4px var(--green)' : ''}" title="${F.res ? 'Researching ' + TECH[F.res.id].n : 'Tech Points'}"><i class="ico ico-scroll"></i> <b>${F.tp}</b> TP${F.res ? ` · ${TECH[F.res.id].icon} ${F.res.left}t` : ''}</span><span class="chip" id="hObj" style="cursor:pointer" title="Objectives"><i class="ico ico-scroll"></i> <b>${(G.objs || []).length}</b></span><span class="chip">Turn <b>${G.turn}</b></span>${G.crisis && G.crisis.cur ? `<span class="chip" title="${CRISES[G.crisis.cur.k].d}"><i class="ico ico-${CRISES[G.crisis.cur.k].ico}"></i> <b style="color:var(--red)">${CRISES[G.crisis.cur.k].n}</b> ${G.crisis.cur.left} turns</span>` : ''}`;
 }
 const UNIT_ICO = { infantry: 'swords', spear: 'spear', archer: 'bow', cavalry: 'helmet', armored: 'shield', blade: 'clash', priest: 'heart' };
 const TILE_ICO = ['river', 'river', 'desert', 'grass', 'grass', 'trees', 'rocks', 'mountain', 'snow', 'desert', 'river'];
@@ -3198,6 +3416,11 @@ function armyPanel(g) {
       if (g.squads.length < maxSquads(g)) h += `<h4>Form squad</h4><div class="sub">From the reserve (${reserveTotal(0)} soldiers):</div><div class="row">` + Object.keys(TROOPS).filter(t => troopUnlocked(0, t)).map(t => `<button class="btn sm" data-form="${t}" ${(F.reserve[t] || 0) > 0 ? '' : 'disabled'} title="${TROOPS[t].d}">${TROOPS[t].n} (${F.reserve[t] || 0})</button>`).join('') + `</div><div class="sub">Recruit soldiers at your towns to fill the reserve.</div>`;
     } else h += `<div class="sub" style="margin-top:6px"><i class="ico ico-alert"></i> Return to your territory to refill or form squads.</div>`;
   }
+  if (own && g.status === 'field') {
+    const sc = G.cities.find(c => man(c.x, c.y, g.x, g.y) === 1 && c.owner !== 0 && (c.owner >= NEUTRAL || atWar(0, c.owner)));
+    if (g.siege != null && G.cities[g.siege]) { const c = G.cities[g.siege]; h += `<div class="tcur" style="margin-top:6px"><i class="ico ico-castle"></i><div><b>Besieging ${c.name}</b><div class="sub">Walls ${Math.round(wallIntact(c) * 100)}% · garrison ${Math.round(c.garrison * 100)}% · each turn the walls crumble and the defenders starve. Attack when ready, or move away to lift the siege.</div></div></div>`; }
+    else if (sc && g.mp > 0) h += `<div class="row"><button class="btn" id="pSiege" title="Camp outside the walls: each turn the walls crumble (-20%) and the garrison starves (-12%). Ends this army's turn."><i class="ico ico-castle"></i> Besiege ${sc.name}</button></div>`;
+  }
   const c = cityAt(g.x, g.y); if (c) h += `<div class="row"><button class="btn sm" id="pCity">View ${c.name}</button></div>`;
   P.innerHTML = h; $('#pport').appendChild(portraitImg(g, 64));
   P.querySelectorAll('[data-learn]').forEach(b => b.onclick = () => { if (learnSkill(g, b.dataset.learn)) { sfx('learn'); toast(`${g.name} learned <b>${ABIL[b.dataset.learn].n}</b>.`); saveGame(); renderHUD(); armyPanel(g); } });
@@ -3205,6 +3428,7 @@ function armyPanel(g) {
   P.querySelectorAll('[data-form]').forEach(b => b.onclick = () => { const n = formSquad(g, b.dataset.form); if (n) { sfx('coin'); afterWorldChange(); } });
   P.querySelectorAll('[data-dis]').forEach(b => b.onclick = () => { const s = g.squads.splice(+b.dataset.dis, 1)[0]; if (s && canRefit(g)) { const back = Math.min(s.hp, reserveCap(0) - reserveTotal(0)); if (back > 0) F.reserve[s.type] = (F.reserve[s.type] || 0) + back; } afterWorldChange(); });
   const pc = $('#pCity'); if (pc) pc.onclick = () => { UI.sel = null; UI.selCity = c; UI.reach = null; UI.targets = []; renderPanel(); };
+  const ps = $('#pSiege'); if (ps) ps.onclick = () => { const sc = G.cities.find(c => man(c.x, c.y, g.x, g.y) === 1 && c.owner !== 0 && (c.owner >= NEUTRAL || atWar(0, c.owner))); if (!sc) return; g.siege = sc.id; g.mp = 0; UI.reach = null; UI.targets = []; sfx('horn'); toast(`${g.name} lays siege to ${sc.name}.`); afterWorldChange(); };
 }
 function cityPanel(c) {
   const P = $('#panel'); P.style.display = 'block';
@@ -3213,7 +3437,7 @@ function cityPanel(c) {
   let tiles = 0; for (let i = 0; i < G.N; i++) if (G.terr[i] === c.id) tiles++;
   let h = `<h3>${c.capital ? '♛ ' : ''}${c.name}</h3><div class="sub"><span class="sw" style="background:${F.col}"></span>${F.name} · Level ${c.level}/5 · ${tiles} tiles</div>
   <div class="stats"><div>Income<b>${row ? Math.round(row.val * rep.mult) : 0}</b></div><div>Garrison<b>${Math.round(c.garrison * 100)}%</b></div><div>People<b>${c.pop || 0}/${popMax(c)}</b></div><div title="Happiness">Mood<b style="color:${(c.happy ?? 65) < 35 ? 'var(--red)' : (c.happy ?? 65) > 75 ? 'var(--green)' : 'inherit'}">${c.owner < NEUTRAL ? (c.happy ?? 65) : '—'}</b></div></div>`;
-  h += `<h4>Buildings</h4>` + (c.build ? `<div class="tcur" style="margin:4px 0"><i class="ico ico-castle"></i><div><b>Building ${projName(c, c.build.k)}</b><div class="sub">${c.build.left} turn${c.build.left === 1 ? '' : 's'} left${own ? ' · one project at a time per town' : ''}</div><div class="tbar"><i style="width:${(1 - c.build.left / c.build.total) * 100}%"></i></div></div>${own ? `<button class="btn sm red" id="pCancelB">Cancel (+${c.build.cost}g)</button>` : ''}</div>` : '') + `<div class="sq"><span class="t">Walls</span><span class="sub" style="flex:1"><b>${WALL_N[wallLvl(c)]}</b> (Lv ${wallLvl(c)}/3): +${Math.round(siegeDef(c) * 100)}% DEF in sieges${wallArchers(c) ? `, ${wallArchers(c)} archers` : ''}${wallLvl(c) < 3 ? ` · next: ${WALL_N[wallLvl(c) + 1]} +${Math.round(WALL_DEF[wallLvl(c) + 1] * 100)}%, ${WALL_ARCHERS[wallLvl(c) + 1]} archers` : ''}</span>${wallLvl(c) >= 3 ? '<i class="ico ico-check"></i>' : !canWall(c) ? `<span class="sub">Town Lv ${WALL_LV[wallLvl(c) + 1]}</span>` : own ? `<button class="btn sm" id="pWall" ${wallCost(c) > F.gold ? 'disabled' : ''}>${wallCost(c)}g · ${WALL_TURNS[wallLvl(c) + 1]}t</button>` : '—'}</div>` + Object.keys(BUILD).map(k => `<div class="sq"><span class="t">${BUILD[k].n}</span><span class="sub" style="flex:1">${BUILD[k].d}</span>${c[k] ? '<i class="ico ico-check"></i>' : c.level < BUILD[k].lv ? `<span class="sub">Town Lv ${BUILD[k].lv}</span>` : own ? `<button class="btn sm" data-b="${k}" ${buildCost(c, k) > F.gold ? 'disabled' : ''}>${buildCost(c, k)}g · ${BUILD_TURNS[k]}t</button>` : '—'}</div>`).join('');
+  h += (wallLvl(c) && c.wallDmg > 0 ? `<div class="sq"><span class="t" style="color:var(--red)">Damaged walls</span><span class="sub" style="flex:1">${Math.round(wallIntact(c) * 100)}% intact${c.besieged ? ' · under siege: no repairs' : ''}</span>${own && !c.besieged && !c.build ? `<button class="btn sm" id="pRepair" ${repairCost(c) > F.gold ? 'disabled' : ''}>Repair ${repairCost(c)}g · ${projTurns(c, 'repair')}t</button>` : ''}</div>` : '') + `<h4>Buildings</h4>` + (c.build ? `<div class="tcur" style="margin:4px 0"><i class="ico ico-castle"></i><div><b>Building ${projName(c, c.build.k)}</b><div class="sub">${c.build.left} turn${c.build.left === 1 ? '' : 's'} left${own ? ' · one project at a time per town' : ''}</div><div class="tbar"><i style="width:${(1 - c.build.left / c.build.total) * 100}%"></i></div></div>${own ? `<button class="btn sm red" id="pCancelB">Cancel (+${c.build.cost}g)</button>` : ''}</div>` : '') + `<div class="sq"><span class="t">Walls</span><span class="sub" style="flex:1"><b>${WALL_N[wallLvl(c)]}</b> (Lv ${wallLvl(c)}/3): +${Math.round(siegeDef(c) * 100)}% DEF in sieges${wallArchers(c) ? `, ${wallArchers(c)} archers` : ''}${wallLvl(c) < 3 ? ` · next: ${WALL_N[wallLvl(c) + 1]} +${Math.round(WALL_DEF[wallLvl(c) + 1] * 100)}%, ${WALL_ARCHERS[wallLvl(c) + 1]} archers` : ''}</span>${wallLvl(c) >= 3 ? '<i class="ico ico-check"></i>' : !canWall(c) ? `<span class="sub">Town Lv ${WALL_LV[wallLvl(c) + 1]}</span>` : own ? `<button class="btn sm" id="pWall" ${wallCost(c) > F.gold ? 'disabled' : ''}>${wallCost(c)}g · ${WALL_TURNS[wallLvl(c) + 1]}t</button>` : '—'}</div>` + Object.keys(BUILD).map(k => `<div class="sq"><span class="t">${BUILD[k].n}</span><span class="sub" style="flex:1">${BUILD[k].d}</span>${c[k] ? '<i class="ico ico-check"></i>' : c.level < BUILD[k].lv ? `<span class="sub">Town Lv ${BUILD[k].lv}</span>` : own ? `<button class="btn sm" data-b="${k}" ${buildCost(c, k) > F.gold ? 'disabled' : ''}>${buildCost(c, k)}g · ${BUILD_TURNS[k]}t</button>` : '—'}</div>`).join('');
   if (own) h += `<div class="sub">Mood ${c.happy ?? 65} → ${happyTarget(c)}${c.conq > 0 ? ` · recently conquered (${c.conq} turns)` : ''}${c.happy < 35 ? ' · <b style="color:var(--red)">unhappy: income and growth suffer, may revolt below 20</b>' : c.happy > 75 ? ' · <b style="color:var(--green)">happy: +15% income, faster growth</b>' : ''}</div>`;
   if (own && c.level < 5) h += `<div class="row"><button class="btn gold" id="pUp" ${upCost(c) > F.gold ? 'disabled' : ''}><i class="ico ico-up"></i> Upgrade to Lv ${c.level + 1} (${upCost(c)}g · ${UP_TURNS} turns)</button></div><div class="sub">Higher levels grow territory, income and the castellan's garrison.</div>`;
   if (own) {
@@ -3230,6 +3454,7 @@ function cityPanel(c) {
   P.querySelectorAll('[data-b]').forEach(b => b.onclick = () => { const k = b.dataset.b; if (c.level < BUILD[k].lv || !startBuild(c, k, buildCost(c, k))) return; sfx('coin'); toast(`Building ${BUILD[k].n} in ${c.name} (${c.build.left} turns).`); afterWorldChange(); });
   const pw = $('#pWall'); if (pw) pw.onclick = () => { if (!canWall(c)) return; const name = WALL_N[wallLvl(c) + 1]; if (!startBuild(c, 'walls', wallCost(c))) return; sfx('coin'); toast(`Raising ${name} at ${c.name} (${c.build.left} turns).`); afterWorldChange(); };
   const up = $('#pUp'); if (up) up.onclick = () => { if (!startBuild(c, 'level', upCost(c))) return; sfx('coin'); toast(`${c.name} begins growing to level ${c.level + 1} (${c.build.left} turns).`); afterWorldChange(); };
+  const pr = $('#pRepair'); if (pr) pr.onclick = () => { if (!startBuild(c, 'repair', repairCost(c))) return; sfx('coin'); toast(`Repairing the walls of ${c.name} (${c.build.left} turns).`); afterWorldChange(); };
   const pc = $('#pCancelB'); if (pc) pc.onclick = () => { F.gold += c.build.cost; c.build = null; afterWorldChange(); };
   if (c.build) P.querySelectorAll('[data-b], #pWall, #pUp').forEach(b => { b.disabled = true; b.title = 'This town is already building something'; });
   const pa = $('#pArmy'); if (pa) pa.onclick = () => selectArmy(a);
@@ -3259,7 +3484,7 @@ function kingdomModal() {
   $('#kScn').onclick = () => { SET.scenes = !SET.scenes; saveSet(); kingdomModal(); };
   $('#kVol').onclick = () => { SET.vol = (SET.vol + 2) % 3; saveSet(); kingdomModal(); sfx('coin'); };
   $('#kMenu').onclick = () => { saveGame(); location.reload(); };
-  $('#kQuit').onclick = () => { $('#kQuit').textContent = 'Click again to confirm'; $('#kQuit').onclick = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) { } location.reload(); }; };
+  $('#kQuit').onclick = () => { $('#kQuit').textContent = 'Click again to confirm'; $('#kQuit').onclick = () => { try { localStorage.removeItem(slotKey(G.slot || 1)); } catch (e) { } location.reload(); }; };
 }
 function generalsModal() {
   const list = fGens(0);
@@ -3328,6 +3553,7 @@ function techModal() {
 }
 $('#bKingdom').onclick = () => !UI.busy && kingdomModal();
 $('#bGenerals').onclick = () => !UI.busy && generalsModal();
+$('#bDip').onclick = () => !UI.busy && diplomacyModal();
 $('#bTavern').onclick = () => !UI.busy && tavernModal();
 $('#bTech').onclick = () => !UI.busy && techModal();
 $('#bNext').onclick = () => !UI.busy && nextArmy();
@@ -3336,10 +3562,10 @@ $('#bEnd').onclick = () => endTurn();
 // ============ MAIN MENU / NEW GAME ============
 // The menu needs no world, so it appears at once; a world is generated (cheaply, no terrain art) only for the
 // minimap preview, and the full terrain is painted when the game actually starts.
-const NG = { fog: '1', cls: 'Fighter', size: 'm', shape: 'continent', enemies: '3', towns: '2', gold: 'std', crisis: '0', seed: 0 };
+const NG = { diff: 'normal', slot: '1', fog: '1', cls: 'Fighter', size: 'm', shape: 'continent', enemies: '3', towns: '2', gold: 'std', crisis: '0', seed: 0 };
 try { Object.assign(NG, JSON.parse(localStorage.getItem('cc_newgame') || '{}')); } catch (e) { }
 let previewWorld = null, previewKey = '';
-const ngOpts = () => ({ cls: CLASSES[NG.cls] ? NG.cls : 'Fighter', size: NG.size, shape: NG.shape, kingdoms: 1 + +NG.enemies, towns: +NG.towns, gold: NG.gold, crisis: NG.crisis === '1', fog: NG.fog !== '0' });
+const ngOpts = () => ({ cls: CLASSES[NG.cls] ? NG.cls : 'Fighter', size: NG.size, shape: NG.shape, kingdoms: 1 + +NG.enemies, towns: +NG.towns, gold: NG.gold, crisis: NG.crisis === '1', fog: NG.fog !== '0', diff: DIFF[NG.diff] ? NG.diff : 'normal' });
 const TERR_COL = ['#1c3e6e', '#2f67a8', '#e2cf8e', '#6fb14a', '#9cc35a', '#3f7d36', '#8a7a52', '#7c7670', '#e8eef4', '#dcc076', '#5e7a4a'];
 function titleScreen(which) {
   for (const [id, k] of [['#tMenu', 'menu'], ['#tSetup', 'setup'], ['#tPanel', 'panel']]) $(id).style.display = which === k ? '' : 'none';
@@ -3361,7 +3587,8 @@ function drawPreview() {
   }
   $('#tSeed').textContent = `Map #${NG.seed} · ${w.W}×${w.H} · ${w.cities.length} towns · ${o.kingdoms} kingdoms`;
 }
-function openSetup() { if (!NG.seed) NG.seed = Math.floor(Math.random() * 1e6); titleScreen('setup'); syncSetup(); drawPreview(); }
+function slotButtons() { $('#tSlots').innerHTML = [1, 2, 3].map(n => { const i = slotInfo(n); return `<button class="btn sm" data-v="${n}" title="${i ? `Overwrites ${i.name}, turn ${i.turn}` : 'Empty'}">${n}${i ? ' (used)' : ''}</button>`; }).join(''); }
+function openSetup() { slotButtons(); if (!NG.slot || slotInfo(+NG.slot)) { for (let n = 1; n <= SLOTS; n++) if (!slotInfo(n)) { NG.slot = String(n); break; } } if (!NG.seed) NG.seed = Math.floor(Math.random() * 1e6); titleScreen('setup'); syncSetup(); drawPreview(); }
 for (const seg of document.querySelectorAll('#tSetup .seg')) seg.onclick = e => {
   const b = e.target.closest('.btn'); if (!b) return; NG[seg.dataset.opt] = b.dataset.v; syncSetup(); drawPreview();
   try { localStorage.setItem('cc_newgame', JSON.stringify(Object.assign({}, NG, { seed: 0 }))); } catch (e) { }
@@ -3374,7 +3601,7 @@ const fadeIn = () => $('#fade').classList.remove('on');
 function busyThen(fn) { $('#tLoad').style.display = 'flex'; requestAnimationFrame(() => setTimeout(() => { try { fn(); } finally { $('#tLoad').style.display = 'none'; $('#fade').classList.add('on'); requestAnimationFrame(() => setTimeout(fadeIn, 60)); } }, 30)); }
 $('#tStart').onclick = () => busyThen(() => {
   const o = ngOpts(); drawPreview(); RNG = Math.random;
-  newGame(previewWorld, ($('#kname').value || 'Kingdom of Aster').slice(0, 24), o); previewWorld = null; previewKey = '';
+  newGame(previewWorld, ($('#kname').value || 'Kingdom of Aster').slice(0, 24), o); G.slot = +NG.slot || 1; previewWorld = null; previewKey = '';
   cam.z = (innerWidth < 760 || innerHeight <= 520) ? 1 : 1.5;
   logMsg('The conquest begins.'); saveGame(); startUI();
   toast('Select your General, move across the map, and attack red-highlighted foes. Capture Free Towns to grow!', 6000);
@@ -3402,17 +3629,26 @@ function helpPanel() {
    <div class="row tbtns"><button class="btn" id="pBack"><i class="ico ico-left"></i> Back</button></div>`;
   $('#pBack').onclick = () => titleScreen('menu'); titleScreen('panel');
 }
-$('#tOpts').onclick = optionsPanel; $('#tHelp').onclick = helpPanel;
+function loadPanel() {
+  const rows = [1, 2, 3].map(n => { const i = slotInfo(n); return `<div class="sq"><span class="t">Slot ${n}</span><span class="sub" style="flex:1">${i ? `<b>${i.name}</b> · turn ${i.turn} · ${i.towns} towns · ${i.size} · ${i.diff}${i.at ? ' · ' + new Date(i.at).toLocaleString() : ''}` : 'Empty'}</span>${i ? `<button class="btn sm gold" data-load="${n}">Load</button><button class="btn sm red" data-del="${n}">Delete</button>` : ''}</div>`; }).join('');
+  $('#tPanel').innerHTML = `<h3><i class="ico ico-scroll"></i> Load Game</h3>${rows}<div class="row tbtns"><button class="btn" id="pBack"><i class="ico ico-left"></i> Back</button></div>`;
+  document.querySelectorAll('[data-load]').forEach(b => b.onclick = () => busyThen(() => { RNG = Math.random; if (loadGame(+b.dataset.load)) { cam.z = (innerWidth < 760 || innerHeight <= 520) ? 1 : 1.5; startUI(); } else toast('Save could not be loaded.'); }));
+  document.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { if (b.dataset.sure) { try { localStorage.removeItem(slotKey(+b.dataset.del)); } catch (e) { } loadPanel(); if (!latestSlot()) { $('#tCont').style.display = $('#tLoadG').style.display = 'none'; titleScreen('menu'); } } else { b.dataset.sure = 1; b.textContent = 'Sure?'; } });
+  $('#pBack').onclick = () => titleScreen('menu'); titleScreen('panel');
+}
+$('#tOpts').onclick = optionsPanel; $('#tHelp').onclick = helpPanel; $('#tLoadG').onclick = loadPanel;
 Object.assign($('#title').style, { backgroundImage: `radial-gradient(#0f1a3d22 20%,#0f1a3dcc), url(${BATTLE_BG.src})`, backgroundSize: 'cover', backgroundPosition: 'center bottom' });
 function startUI() {
   $('#title').style.display = 'none';
   for (const id of ['#hud', '#toolbar']) $(id).style.display = 'flex';
   $('#zoom').style.display = 'flex'; $('#log').style.display = 'block';
+  if (!G.objs) objectivesTick();
   renderHUD(); renderLog();
   const g = fieldGens(0)[0]; if (g) { centerOn(g.x, g.y); selectArmy(g); }
 }
-try { if (localStorage.getItem(SAVE_KEY)) $('#tCont').style.display = ''; } catch (e) { }
+migrateSave(); if (latestSlot()) { $('#tCont').style.display = ''; $('#tLoadG').style.display = ''; }
 // the map needs the texture atlas; keep the start buttons waiting until it has decoded
 $('#tStart').disabled = $('#tCont').disabled = true; atlasReady.then(() => { $('#tStart').disabled = $('#tCont').disabled = false; });
+$('#tLoadG').disabled = true; atlasReady.then(() => { $('#tLoadG').disabled = false; });
 </script>
 </body></html>
