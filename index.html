@@ -1649,8 +1649,8 @@ function buildScene(b, info, banners) {
     }
     for (let k = 0; k < (S.sk === 'meteor' ? 4 : 22); k++) { const tgt = pick(S.casterSide ? L : Rr); const t = t0 + R() * (t1 - t0); if (S.sk === 'meteor') S.booms.push({ x: tgt.hx + (R() - 0.5) * 30, y: tgt.hy + (R() - 0.5) * 8, t, big: false }); else S.proj.push({ from: pick(casterArr), to: tgt, t0: t - 0.55, t1: t, kind: 'arrow', high: true, miss: true }); }
   } else {
-    // each ranged soldier looses arrows on their own rhythm at the unit they are aiming for
-    for (const so of S.soldiers) if (so.ranged && so.tgU && !so.gen) for (let tv = 0.45 + so.off * 0.8; tv < S.end - 2.1; tv += 0.85 + R() * 0.45) { const tg = pick((S.byU.get(so.tgU.uid) || []).filter(e => !e.gen)); if (tg) S.proj.push({ from: so, to: tg, t0: tv, t1: tv + 0.5 + R() * 0.15, kind: projKind(so.type), miss: true }); }
+    // ranged soldiers pick a live target each time they shoot (see stepScene)
+    for (const so of S.soldiers) if (so.ranged && !so.gen) so.nextShot = 0.45 + so.off * 0.8;
   }
   S.deaths.sort((a, c) => a.t - c.t);
   S.genHp = [[hpBefore(gL), Math.max(0, gL.hp)], [hpBefore(gR), Math.max(0, gR.hp)]];
@@ -1750,10 +1750,21 @@ function stepDuel(S, t, dt) {
 // a melee soldier's swing lands: usually a hit that shoves the target back, sometimes a clash of steel
 function strike(S, so, tg, t) {
   const dir = Math.sign(tg.x - so.x) || (so.side ? -1 : 1), cav = so.type === 'cavalry' && !so.hit1; so.hit1 = true;
+  if (tg.gen) { burst(S, (so.x + tg.x) / 2, so.y - 11, 5, CLANGC, 60, 15); S.rings.push({ x: (so.x + tg.x) / 2, y: so.y - 11, t: 0, c: '#cfe8ff', r: 7 }); knock(so, -dir, cav ? 90 : 50); return; } // a General's HP only moves in the duel
   if (cav || R() < 0.55) {
     tg.hurtT = t; tg.flashT = t; knock(tg, dir, cav ? 150 : 60, cav ? 75 : 0);
     burst(S, tg.x - dir * 3, tg.y - 10, cav ? 10 : 5, HITC, cav ? 90 : 60, 20); if (cav) impact(S, 0.03, 2);
   } else { burst(S, (so.x + tg.x) / 2, so.y - 10, 4, CLANGC, 50, 15); knock(tg, dir, 30); knock(so, -dir, 30); }
+}
+// who a soldier goes after: their own target squad while it stands, then the nearest remaining row of the enemy
+// formation; the enemy General counts as part of the middle row (soldiers prefer troops at the same distance)
+function nextFoe(S, so, t) {
+  const live = e => e.side !== so.side && !e.dead && !(e.flee && t > e.flee);
+  const own = so.tgU ? (S.byU.get(so.tgU.uid) || []).filter(e => live(e) && !e.gen) : [];
+  const c = own.length ? own : S.soldiers.filter(live);
+  const cost = e => Math.abs(e.y - so.hy) + Math.abs(e.x - so.x) * 0.2 + e.off * 6 + (e.gen ? 8 : 0);
+  let best = null, bc = 1e9; for (const e of c) { const v = cost(e); if (v < bc) { bc = v; best = e; } }
+  return best;
 }
 function stepScene(S, t, dt) {
   const tc = S.tc || 99, back = S.duel && !S.duel.done ? 1e9 : S.end - 1.2;
@@ -1770,6 +1781,12 @@ function stepScene(S, t, dt) {
     h.done = true; const tg = (S.byU.get(h.u.uid) || []).filter(s => !s.dead && !(s.flee && t > s.flee));
     const so = pick(tg); if (so) popup(S, so.x, so.y - 28, '+' + h.n, 'heal');
   }
+  // a volley that lands without killing: soldiers flinch back, a General knocks it aside
+  for (const p of S.proj) if (p.fx && !p.done && t >= p.t1) {
+    p.done = true; const tg = p.to; if (tg.dead) continue; const dir = Math.sign(tg.x - p.from.x) || 1;
+    if (tg.gen) burst(S, tg.x - dir * 4, tg.y - 12, 4, CLANGC, 50, 15);
+    else { tg.hurtT = t; tg.flashT = t; knock(tg, dir, 35); burst(S, tg.x - dir * 2, tg.y - 8, 3, HITC, 40, 10); }
+  }
   if (S.duel) stepDuel(S, t, dt);
   for (const so of S.soldiers) {
     // knockback and airborne physics apply to everyone, the fallen included
@@ -1781,18 +1798,14 @@ function stepScene(S, t, dt) {
     so.ak = null; so.sp = false; so.charge = false;
     if (so.gen && S.genHp[so.side][1] < S.genHp[so.side][0] && !so.hit1 && t >= 1.3) { so.hit1 = true; so.hurtT = t; so.flashT = t; knock(so, -dir, 90, 30); }
     if (so.flee && t > so.flee) { so.state = 'run'; so.face = -dir; so.x -= dir * 70 * dt; continue; }
-    so.face = dir;
+    so.face = so.ranged && so.aimDir ? so.aimDir : dir;
     if (S.mode === 'clash' && !so.ranged) {
       // every soldier decides for themselves: pick a foe, run at them, fight, and walk back when it is over
       const goTo = (gx, gy, k) => { const dx = gx - so.x, dy = gy - so.y, dd = Math.hypot(dx, dy), st = so.spd * k * dt; if (dd <= Math.max(1.5, st)) { so.x = gx; so.y = gy; return true; } so.x += dx / dd * st; so.y += dy / dd * st; so.state = 'run'; if (Math.abs(dx) > 1) so.face = Math.sign(dx); if (R() < 0.08) S.dust.push({ x: so.x - so.face * 4, y: so.y, t: 0 }); return false; };
       so.state = 'idle';
       if (t >= back) { goTo(so.hx, so.hy, 1.15); }
       else if (t >= so.t0) {
-        if (so.tgU && (!so.tg || !live(so.tg))) {
-          let c = (S.byU.get(so.tgU.uid) || []).filter(e => live(e) && foeOk(e));
-          if (!c.length) c = S.soldiers.filter(e => e.side !== so.side && live(e) && foeOk(e));
-          so.tg = c.sort((a, e) => Math.abs(a.y - so.hy) + Math.abs(a.x - so.x) * 0.2 + a.off * 6 - (Math.abs(e.y - so.hy) + Math.abs(e.x - so.x) * 0.2 + e.off * 6))[0] || null;
-        }
+        if (so.tgU && (!so.tg || !live(so.tg))) so.tg = nextFoe(S, so, t);
         let tg = so.tgU ? so.tg : null, engaged = false;
         if (tg) {
           const rc = so.reach + (tg.gen ? 2 : 0) + (tg.type === 'cavalry' ? 5 : 0), sx = Math.sign(so.x - tg.x) || -dir;
@@ -1808,6 +1821,11 @@ function stepScene(S, t, dt) {
         } else if (so.state === 'run') { so.charge = true; so.sw = null; }
       }
     } else {
+      if (S.mode === 'clash' && so.ranged && !so.gen && so.nextShot != null && t >= so.nextShot && t < back - 0.6) {
+        const tg = nextFoe(S, so, t);
+        if (tg) { const hit = tg.gen || R() < 0.5, fl = 0.45 + Math.abs(tg.x - so.x) / 600 + R() * 0.1; S.proj.push({ from: so, to: tg, t0: t + 0.5, t1: t + 0.5 + fl, kind: projKind(so.type), miss: !hit, fx: hit }); so.aimDir = Math.sign(tg.x - so.x) || so.aimDir; so.face = so.aimDir || so.face; }
+        so.nextShot = t + 1.3 + R() * 0.5;
+      }
       const shot = S.proj.find(p => p.from === so && t > p.t0 - 0.55 && t < p.t0 + 0.25);
       const casting = S.mode === 'skill' && so.gen && so.side === S.casterSide && t > 0.5 && t < 1.6;
       const heal = !so.gen && so.type === 'priest' && (S.heals || []).find(h => h.by === so.u && t > h.t - 0.55 && t < h.t + 0.1);
