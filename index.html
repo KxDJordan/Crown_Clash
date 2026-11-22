@@ -1451,8 +1451,9 @@ function sceneBg(biome, castle) {
   sceneBgCache.set(key, cv); return cv;
 }
 
-const LANES = [168, 196, 224], COLX = [158, 86];
-const SOFF = [[0, 0], [-12, -6], [-13, 6], [-25, -1], [-24, 9]];
+// the background's near grass starts around y=178 (above that are the distant hills), so every lane sits below it
+const LANES = [191, 211, 231], COLX = [158, 86], GROUND = 184;
+const SOFF = [[0, 0], [-12, -5], [-13, 5], [-25, -1], [-24, 7]];
 const dispN = hp => Math.min(5, Math.ceil(Math.max(0, hp) / 2));
 function layoutArmy(gu, units, side, hpOf) {
   const pal = G.pals[gu.g.faction] || G.pals[NEUTRAL], list = [], X = x => side ? SW - x : x;
@@ -1676,7 +1677,7 @@ function stepScene(S, t, dt) {
         let tg = so.tgU ? so.tg : null, engaged = false;
         if (tg) {
           const rc = so.reach + (tg.gen ? 2 : 0) + (tg.type === 'cavalry' ? 5 : 0), sx = Math.sign(so.x - tg.x) || -dir;
-          engaged = (Math.abs(so.x - tg.x) <= rc + 2 && Math.abs(so.x - tg.x) >= rc * 0.5 && Math.abs(so.y - tg.y) < 5) || goTo(clamp(tg.x + sx * rc, 8, SW - 8), clamp(tg.y + so.jy * 0.4, HOR + 12, SH - 4), 1);
+          engaged = (Math.abs(so.x - tg.x) <= rc + 2 && Math.abs(so.x - tg.x) >= rc * 0.5 && Math.abs(so.y - tg.y) < 5) || goTo(clamp(tg.x + sx * rc, 8, SW - 8), clamp(tg.y + so.jy * 0.4, GROUND, SH - 3), 1);
         }
         else { tg = S.soldiers.find(e => e.side !== so.side && live(e) && foeOk(e) && Math.abs(e.x - so.x) < 26 && Math.abs(e.y - so.y) < 9); engaged = !!tg; if (!tg && !so.tgU) goTo(so.hx, so.hy, 1); }
         if (engaged && tg) {
