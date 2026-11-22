@@ -420,7 +420,7 @@ let G = null; // game state
 
 function quantile(arr, q) { const a = Array.from(arr).sort((x, y) => x - y); return a[Math.floor(clamp(q, 0, 0.999) * a.length)]; }
 
-function genWorld(seed, W = 64, H = 44) {
+function genWorld(seed, W = 96, H = 66) {
   usedTown = new Set();
   const N = W * H, s = seed % 1000003;
   const elev = new Float32Array(N), moist = new Float32Array(N), temp = new Float32Array(N);
@@ -473,7 +473,7 @@ function genWorld(seed, W = 64, H = 44) {
   srcs.sort((a, b) => hash2(a, 1, s) - hash2(b, 1, s));
   let made = 0;
   for (const src of srcs) {
-    if (made >= 8) break;
+    if (made >= Math.round(N / 512)) break; // ~12 rivers on the default map
     let c = src, path = [c], seen = new Set([c]), ok = false;
     for (let step = 0; step < 50; step++) {
       const cx = c % W, cy = (c / W) | 0; let bn = -1, be = 1e9;
@@ -507,13 +507,15 @@ function placeCities(g) {
   for (let i = 0; i < N; i++) { const sc = cityScore(g, i); const x = i % W, y = (i / W) | 0; if (sc >= 1.5 && x > 1 && y > 1 && x < W - 2 && y < g.H - 2) cand.push(i); }
   const cities = []; const dist = (a, b) => Math.hypot(a % W - b % W, ((a / W) | 0) - ((b / W) | 0));
   const add = (i, owner, cap) => cities.push({ id: cities.length, name: townName(), x: i % W, y: (i / W) | 0, owner, level: cap ? 2 : 1, capital: cap, market: false, barracks: false, walls: cap, garrison: 1 });
-  // capitals by farthest-point sampling
+  // capitals by farthest-point sampling, kept inland so no kingdom starts pinned against the map edge
+  const inland = i => { const dx = ((i % W) / W - 0.5) * 2, dy = (((i / W) | 0) / g.H - 0.5) * 2; return Math.hypot(dx, dy) < 0.62; };
+  const capCand = cand.filter(inland).length >= 8 ? cand.filter(inland) : cand;
   const caps = [];
-  let first = cand[Math.floor(hash2(3, 3, g.seed) * cand.length)];
+  let first = capCand[Math.floor(hash2(3, 3, g.seed) * capCand.length)];
   caps.push(first);
   for (let f = 1; f < 4; f++) {
     let bi = -1, bs = -1;
-    for (const c of cand) { const md = Math.min(...caps.map(k => dist(k, c))); const sc = md + cityScore(g, c) * 2; if (sc > bs) { bs = sc; bi = c; } }
+    for (const c of capCand) { const md = Math.min(...caps.map(k => dist(k, c))); const sc = md + cityScore(g, c) * 2; if (sc > bs) { bs = sc; bi = c; } }
     caps.push(bi);
   }
   caps.forEach((c, f) => add(c, f, true));
@@ -526,7 +528,7 @@ function placeCities(g) {
   // neutral towns
   const shuffled = cand.slice().sort((a, b) => hash2(a, 11, g.seed) - hash2(b, 11, g.seed));
   for (const c of shuffled) {
-    if (cities.length >= 20) break;
+    if (cities.length >= Math.round(N / 200)) break; // ~32 towns on the default map
     const md = Math.min(...cities.map(k => dist(k.y * W + k.x, c)));
     if (md >= 6.5) { add(c, NEUTRAL, false); cities[cities.length - 1].level = R() < 0.35 ? 2 : 1; }
   }
