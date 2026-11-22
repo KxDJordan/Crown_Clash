@@ -1204,6 +1204,7 @@ function drawGenUnit(ctx, o, g) {
   let row, n, fr;
   if (o.state === 'dead') { row = 13; fr = Math.min(4, Math.floor((o.dt || 0) * 9)); }
   else if (o.hurt != null) { row = 12; fr = Math.min(3, Math.floor(o.hurt * 10)); }
+  else if (o.dash != null) { row = 14; fr = o.dash; }
   else if (o.roll != null) { row = 16; fr = Math.min(7, Math.floor(o.roll * 18)); }
   else if (o.blk != null) { row = 15; fr = Math.min(4, 1 + Math.floor(o.blk * 12)); }
   else if (o.state === 'atk') {
@@ -1352,7 +1353,16 @@ function passives(g) {
 const genMaxHp = g => 10 + passives(g).ghp;
 const ABIL_CD = 3;
 const abilitiesOf = g => g.temp ? [] : skillsOf(g).filter(k => ABIL[k] && ABIL[k].fx);
-const abilReady = g => !g.cd || G.turn >= g.cd;
+// every active skill has its own cooldown (turns) and its own opening scene in battle
+const ABIL_CDS = { warcry: 2, rally: 3, laststand: 4, stalwart: 2, oath: 3, kcharge: 3, crusade: 5, phalanx: 2, menace: 3, fortress: 4, lance: 2, breach: 3, warpath: 4, arrows: 3, hawkeye: 2, poison: 4, meteor: 3, bless: 2, lightning: 4, lightheal: 4 };
+//   dash: the General dashes through the enemy lines to behind them, cutting soldiers down, then dashes back
+//   cast: casting pose over a magic circle while the spell falls · roar: shout and red shockwaves (Intimidate makes
+//   the enemy flinch) · charge: a run to midfield and back · aura: shield domes over the army · heal: green light and
+//   +N on each squad · bless: golden sparkles over the army
+const ABIL_ANIM = { warcry: 'roar', rally: 'heal', laststand: 'aura', stalwart: 'aura', oath: 'heal', kcharge: 'charge', crusade: 'charge', phalanx: 'aura', menace: 'roar', fortress: 'aura', lance: 'roar', breach: 'charge', warpath: 'roar', arrows: 'dash', hawkeye: 'bless', poison: 'dash', meteor: 'cast', bless: 'bless', lightning: 'cast', lightheal: 'heal' };
+for (const k in ABIL) if (ABIL[k].fx) { ABIL[k].cd = ABIL_CDS[k] || 3; ABIL[k].anim = ABIL_ANIM[k] || 'roar'; }
+const abilReadyK = (g, k) => !g.cds || !g.cds[k] || G.turn >= g.cds[k];
+const abilReady = g => abilitiesOf(g).some(k => abilReadyK(g, k));
 
 // ============ ARMY BATTLE ENGINE (auto, Langrisser Mobile style) ============
 const TERRAIN_DEF = { [T.FOREST]: .12, [T.HILLS]: .15, [T.SWAMP]: -.08, [T.SNOW]: .05 };
@@ -1397,24 +1407,24 @@ function makeBattle(opts) {
 }
 const genUnits = (b, side) => b.units.filter(u => u.kind === 'gen' && u.hp > 0 && (side == null || u.side === side));
 function aiPickAbilities(b, side) {
-  for (const gu of genUnits(b, side)) { const g = gu.g; if (!abilReady(g)) continue; const ab = abilitiesOf(g); if (ab.length) b.abil.set(g.id, pick(ab)); }
+  for (const gu of genUnits(b, side)) { const g = gu.g, ab = abilitiesOf(g).filter(k => abilReadyK(g, k)); if (ab.length) b.abil.set(g.id, pick(ab)); }
 }
 // apply chosen abilities: returns list of strike events for scenes
 function applyAbilities(b) {
   const evs = [];
   for (const gu of genUnits(b)) {
-    const k = b.abil.get(gu.g.id); if (!k) continue; const A = ABIL[k];
-    gu.fx = A.fx; if (!gu.g.temp) gu.g.cd = G.turn + ABIL_CD;
+    const k = b.abil.get(gu.g.id); if (!k || !abilReadyK(gu.g, k)) continue; const A = ABIL[k];
+    const before = new Map(b.units.map(u => [u.uid, u.hp]));
+    gu.fx = A.fx; if (!gu.g.temp) (gu.g.cds = gu.g.cds || {})[k] = G.turn + A.cd;
     if (A.fx.ea) b.ea[1 - gu.side] *= A.fx.ea;
     if (A.fx.heal) for (const s of squadsOf(b, gu)) s.hp = Math.min(sqMax(gu.g), s.hp + A.fx.heal);
     if (A.fx.strike) {
-      const before = new Map(b.units.map(u => [u.uid, u.hp]));
       for (const e of b.units.filter(u => u.side !== gu.side && u.hp > 0)) {
         if (e.kind === 'sq') e.hp = Math.max(0, e.hp - A.fx.strike - passives(gu.g).sdmg);
         else if (A.fx.gstrike) e.hp = Math.max(1, e.hp - A.fx.gstrike);
       }
       evs.push({ caster: gu, k, before });
-    } else evs.push({ caster: gu, k, buff: true });
+    } else evs.push({ caster: gu, k, before, buff: true });
   }
   return evs;
 }
@@ -1612,8 +1622,8 @@ function renderPre() {
     let ab = '';
     if (side === me) {
       const list = abilitiesOf(g);
-      ab = list.length ? `<div class="abl">${list.map(k => { const A = ABIL[k], on = b.abil.get(g.id) === k, ready = abilReady(g); return `<button class="btn sm ${on ? 'gold' : ''}" data-ab="${g.id}:${k}" ${ready ? '' : 'disabled'} title="${A.d}">${A.i} ${A.n}</button>`; }).join('')}</div>
-        <div class="sub">${abilReady(g) ? (b.abil.get(g.id) ? ABIL[b.abil.get(g.id)].d : 'Tap an ability to use it this battle (3-turn cooldown).') : `Abilities recharging — ready on turn ${g.cd}.`}</div>` : '<div class="sub">No abilities.</div>';
+      ab = list.length ? `<div class="abl">${list.map(k => { const A = ABIL[k], on = b.abil.get(g.id) === k, ready = abilReadyK(g, k); return `<button class="btn sm ${on ? 'gold' : ''}" data-ab="${g.id}:${k}" ${ready ? '' : 'disabled'} title="${A.d} · ${A.cd}-turn cooldown">${A.i} ${A.n}${ready ? '' : ` (${g.cds[k] - G.turn}t)`}</button>`; }).join('')}</div>
+        <div class="sub">${b.abil.get(g.id) ? `${ABIL[b.abil.get(g.id)].d} · ${ABIL[b.abil.get(g.id)].cd}-turn cooldown` : abilReady(g) ? 'Tap an ability to use it this battle. Each ability has its own cooldown.' : 'All abilities are recharging.'}</div>` : '<div class="sub">No abilities.</div>';
     } else { const k = b.abil.get(g.id); ab = k ? `<div class="sub" style="color:var(--red)">Will use ${ABIL[k].i} <b>${ABIL[k].n}</b> — ${ABIL[k].d}</div>` : ''; }
     return `<div class="gcard" style="--fc:${pal.main}"><div class="ph" style="margin:0"><span data-pp="${gu.uid}"></span><div style="min-width:0"><div class="nm" style="font-size:15px">${g.name}</div><div class="sub"><span class="stars">${'★'.repeat(g.stars)}</span> ${g.cls} Lv${g.lvl}${g.temp ? ' · <i class="ico ico-castle"></i> garrison' : ''}</div>
      <div class="sub">ATK ${g.atk} DEF ${g.def} · Cmd +${cmdBonus(g)}</div></div></div>
@@ -1660,8 +1670,7 @@ async function playBattle(scenes) {
   $('#tacbtns').innerHTML = ''; SKIP.round = !scenes;
   const leftSide = b.player === 1 ? 1 : 0, lr = side => side === leftSide ? 0 : 1;
   const evs = applyAbilities(b); checkEnd(b);
-  const pendingBan = new Map(); for (const e of evs) if (e.buff) pendingBan.set(e.caster.uid, { side: lr(e.caster.side), text: `${ABIL[e.k].i} ${ABIL[e.k].n}!` });
-  for (const e of evs) if (!e.buff && !SKIP.round) {
+  for (const e of evs) if (!SKIP.round) {
     $('#sround').textContent = `${e.caster.g.name.split(' ')[0]} unleashes ${ABIL[e.k].n}`;
     await playScene(buildScene(b, { skill: true, caster: e.caster, k: e.k, before: e.before }, [{ side: lr(e.caster.side), text: `${ABIL[e.k].i} ${ABIL[e.k].n}!` }]));
   }
@@ -1669,8 +1678,7 @@ async function playBattle(scenes) {
     for (const [x, y] of pairings(b)) {
       if (b.over) break;
       if (x.hp <= 0 || y.hp <= 0) continue;
-      const bn = []; for (const g of [x, y]) if (pendingBan.has(g.uid)) { bn.push(pendingBan.get(g.uid)); pendingBan.delete(g.uid); }
-      const S = buildClash(b, x, y, bn);
+      const S = buildClash(b, x, y);
       if (!SKIP.round) { $('#sround').textContent = `Round ${b.round}/${b.maxRounds}`; await playScene(S); }
       runClash(S); // the rest of the clash if it was skipped (nothing left if it was watched to the end)
       const info = finishClash(S);
@@ -1769,7 +1777,7 @@ const popup = (S, x, y, text, cls) => S.pops.push({ x, y, text, cls });
 // build a scene for an exchange (info from pairExchange) or a strike skill
 function buildScene(b, info, banners) {
   const leftSide = b.player === 1 ? 1 : 0;
-  const S = { soldiers: [], proj: [], parts: [], rings: [], pops: [], dust: [], booms: [], banners: banners || [], b, hs: 0, slow: 0, shake: 0, flashA: 0 };
+  const S = { soldiers: [], proj: [], parts: [], rings: [], pops: [], dust: [], booms: [], trail: [], banners: banners || [], b, hs: 0, slow: 0, shake: 0, flashA: 0 };
   const hpBefore = u => info.before.get(u.uid) ?? u.hp;
   let gL, gR, uL, uR;
   if (info.skill) {
@@ -1778,7 +1786,7 @@ function buildScene(b, info, banners) {
     const groupOf = g => b.units.filter(u => u.cmdr === g && (u === g || (info.before.get(u.uid) || 0) > 0));
     [gL, gR] = c.side === leftSide ? [c, foe] : [foe, c];
     uL = groupOf(gL); uR = groupOf(gR);
-    S.mode = 'skill'; S.casterSide = c.side === leftSide ? 0 : 1; S.sk = ABIL[info.k].fx.sk; S.end = 3.0;
+    S.mode = 'skill'; S.casterSide = c.side === leftSide ? 0 : 1; S.k = info.k; S.sk = ABIL[info.k].fx.sk; S.anim = ABIL[info.k].anim; S.fxs = []; S.hits = []; S.end = ABIL[info.k].fx.strike ? 3.2 : 2.6;
   } else {
     [gL, gR] = info.gA.side === leftSide ? [info.gA, info.gB] : [info.gB, info.gA];
     uL = gL === info.gA ? info.A : info.B; uR = gL === info.gA ? info.B : info.A;
@@ -1816,7 +1824,18 @@ function buildScene(b, info, banners) {
       else S.genFall.push({ sd, t: Infinity, g }); // the duel decides when the blow lands
     }
   }
-  if (S.mode === 'skill') {
+  if (S.mode === 'skill' && S.anim === 'dash') {
+    // the dash: out through the enemy formation to behind it, then back; everyone in its path is cut as it passes
+    const me = (S.casterSide ? Rr : L)[0], foes = S.casterSide ? L : Rr, dir = S.casterSide ? -1 : 1;
+    const far = dir > 0 ? Math.max(...foes.map(f => f.hx)) + 24 : Math.min(...foes.map(f => f.hx)) - 24;
+    S.dash = { so: me, x0: me.hx, x1: clamp(far, 10, SW - 10), y: LANES[1] + 2, t0: 0.55, v: 430, dir };
+    S.dash.tOut = S.dash.t0 + Math.abs(S.dash.x1 - S.dash.x0) / S.dash.v; S.dash.tBack = S.dash.tOut + 0.45; S.dash.tHome = S.dash.tBack + Math.abs(S.dash.x1 - S.dash.x0) / S.dash.v;
+    const pass = x => S.dash.t0 + Math.abs(x - S.dash.x0) / S.dash.v + 0.02;
+    const dying = new Set(S.deaths.map(d => d.so));
+    for (const d of S.deaths) d.t = pass(d.so.hx);
+    for (const f of foes) if (!f.gen && !dying.has(f) && (info.before.get(f.u.uid) || 0) > Math.max(0, f.u.hp)) S.hits.push({ so: f, t: pass(f.hx) });
+    S.end = S.dash.tHome + 1.0;
+  } else if (S.mode === 'skill' && S.sk) {
     // projectiles to victims
     const casterArr = S.casterSide ? Rr : L;
     for (const d of S.deaths) {
@@ -1832,6 +1851,7 @@ function buildScene(b, info, banners) {
   S.deaths.sort((a, c) => a.t - c.t);
   S.genHp = [[hpBefore(gL), Math.max(0, gL.hp)], [hpBefore(gR), Math.max(0, gR.hp)]];
   S.gShow = [S.genHp[0][0], S.genHp[1][0]];
+  if (S.mode === 'skill') S.healPops = (S.casterSide ? uR : uL).filter(u => u.kind === 'sq' && u.hp > hpBefore(u)).map((u, i) => ({ u, n: u.hp - hpBefore(u), t: 1.0 + i * 0.12 }));
   S.bg = sceneBg(b.biome, b.siege);
   return S;
 }
@@ -1843,7 +1863,7 @@ let SIM_QUIET = false; // headless runs: no sounds
 function buildClash(b, gA, gB, banners) {
   const leftSide = b.player === 1 ? 1 : 0;
   const [gL, gR] = gA.side === leftSide ? [gA, gB] : [gB, gA];
-  const S = { soldiers: [], proj: [], parts: [], rings: [], pops: [], dust: [], booms: [], deaths: [], banners: banners || [], b, hs: 0, slow: 0, shake: 0, flashA: 0, mode: 'clash', live: true, t: 0, tc: 1.4, fightEnd: LIVE.fight, oc: new Map(), xp: {}, gL, gR };
+  const S = { soldiers: [], proj: [], parts: [], rings: [], pops: [], dust: [], booms: [], deaths: [], trail: [], banners: banners || [], b, hs: 0, slow: 0, shake: 0, flashA: 0, mode: 'clash', live: true, t: 0, tc: 1.4, fightEnd: LIVE.fight, oc: new Map(), xp: {}, gL, gR };
   S.uL = [gL, ...squadsOf(b, gL)]; S.uR = [gR, ...squadsOf(b, gR)];
   const L = layoutArmy(gL, S.uL, 0, u => u.hp), Rr = layoutArmy(gR, S.uR, 1, u => u.hp);
   S.soldiers = L.concat(Rr);
@@ -1983,6 +2003,43 @@ function nextFoe(S, so, t) {
   let best = null, bc = 1e9; for (const e of c) { const v = cost(e); if (v < bc) { bc = v; best = e; } }
   return best;
 }
+// the caster's opening: each ability has its own choreography and battle effects
+function stepCaster(S, so, t, dt) {
+  const dir = so.side ? -1 : 1, A = ABIL[S.k], mates = S.soldiers.filter(s => s.side === so.side && !s.gen && !s.dead), foes = S.soldiers.filter(s => s.side !== so.side && !s.dead);
+  const once = (key, at, fn) => { S.once = S.once || {}; if (!S.once[key] && t >= at) { S.once[key] = true; fn(); } };
+  so.state = 'idle'; so.ak = null; so.sp = false; so.heavy = false; so.dash = null; so.face = dir;
+  const pose = (a, b) => { if (t > a && t < b) { so.state = 'atk'; so.sp = true; so.ak = (t - a) / (b - a); } };
+  const squadsAt = side => { const m = new Map(); for (const s of S.soldiers) if (s.side === side && !s.gen && !s.dead) { if (!m.has(s.u.uid)) m.set(s.u.uid, []); m.get(s.u.uid).push(s); } return [...m.values()].map(fs => ({ x: fs.reduce((a, f) => a + f.x, 0) / fs.length, y: fs.reduce((a, f) => a + f.y, 0) / fs.length, w: 20 + fs.length * 5 })); };
+  if (S.anim === 'dash') {
+    const D = S.dash;
+    if (t < D.t0) { if (t > D.t0 - 0.25) { so.dash = 1; } } // crouch
+    else if (t < D.tOut) { const k = (t - D.t0) / (D.tOut - D.t0); so.x = lerp(D.x0, D.x1, k); so.y = lerp(so.hy, D.y, Math.min(1, k * 3)); so.dash = 2 + Math.floor(t * 18) % 3; S.trail.push({ x: so.x, y: so.y, t, f: so.dash, face: dir }); once('go', D.t0, () => { sfx('whoosh'); impact(S, 0, 2); }); }
+    else if (t < D.tBack) { so.x = D.x1; so.face = -dir; so.dash = 5 + Math.min(2, Math.floor((t - D.tOut) * 8)); once('turn', D.tOut, () => { sfx('clang'); burst(S, so.x, so.y - 12, 10, S.k === 'poison' ? ['#7ad86a', '#b8f080'] : CLANGC, 90, 30); }); }
+    else if (t < D.tHome) { const k = (t - D.tBack) / (D.tHome - D.tBack); so.x = lerp(D.x1, D.x0, k); so.y = lerp(D.y, so.hy, Math.max(0, k * 3 - 2)); so.face = -dir; so.dash = 2 + Math.floor(t * 18) % 3; S.trail.push({ x: so.x, y: so.y, t, f: so.dash, face: -dir }); once('back', D.tBack, () => sfx('whoosh')); }
+    else { so.x = D.x0; so.y = so.hy; }
+    return;
+  }
+  if (S.anim === 'cast') { pose(0.4, 1.7); if (t > 0.35 && t < 2.0) S.circle = { x: so.x, y: so.y, a: Math.min(1, (t - 0.35) * 4, (2.0 - t) * 4), c: S.sk === 'lightning' ? '#8ac8ff' : '#ffb040' }; else S.circle = null; return; }
+  if (S.anim === 'charge') {
+    const mid = SW / 2 - dir * 18;
+    if (t > 0.35 && t < 0.85) { so.x = lerp(so.hx, mid, (t - 0.35) / 0.5); so.state = 'run'; so.charge = true; if (R() < 0.3) S.dust.push({ x: so.x - dir * 4, y: so.y, t: 0 }); }
+    else if (t >= 0.85 && t < 1.25) { so.x = mid; so.state = 'atk'; so.heavy = true; so.ak = (t - 0.85) / 0.4; once('hit', 1.0, () => { impact(S, 0.06, 5); sfx('heavy'); S.rings.push({ x: mid + dir * 10, y: so.y - 10, t: 0, c: '#ffd24a', r: 30 }); burst(S, mid + dir * 10, so.y - 8, 18, ['#ffd24a', '#fff8d0', '#ffffff'], 130, 40); for (const s of mates) s.flashT = t; }); }
+    else if (t >= 1.25 && t < 1.85) { so.x = lerp(mid, so.hx, (t - 1.25) / 0.6); so.state = 'run'; so.face = -dir; }
+    else if (t >= 1.85) { so.x = so.hx; }
+    return;
+  }
+  const step = t > 0.2 && t < 1.8 ? 10 : 0; so.x = so.hx + dir * step * Math.min(1, Math.max(0, Math.min((t - 0.2) * 5, (1.8 - t) * 5)));
+  pose(0.45, 1.45);
+  if (S.anim === 'roar') once('roar', 0.8, () => {
+    sfx('horn'); impact(S, 0.04, 4);
+    for (let r = 0; r < 3; r++) S.rings.push({ x: so.x, y: so.y - 12, t: -r * 0.06, c: '#ff6a4a', r: 40 + r * 18 });
+    for (const s of mates) { s.flashT = t + R() * 0.15; burst(S, s.x, s.y - 14, 2, ['#ff6a4a', '#ffd24a'], 40, 40); }
+    if (A.fx.ea) for (const s of foes) if (!s.gen) { s.hurtT = t + 0.1; knock(s, dir, 70, 20); }
+  });
+  if (S.anim === 'aura') once('aura', 0.8, () => { sfx('skill'); for (const q of squadsAt(so.side)) S.fxs.push({ type: 'dome', x: q.x, y: q.y, w: q.w, t0: t, t1: t + 1.4, c: '#8ac8ff' }); S.fxs.push({ type: 'dome', x: so.x, y: so.y, w: 22, t0: t, t1: t + 1.4, c: '#ffd24a' }); });
+  if (S.anim === 'heal') once('heal', 0.8, () => { for (const q of squadsAt(so.side)) S.fxs.push({ type: 'pillar', x: q.x, y: q.y, w: q.w, t0: t, t1: t + 1.1, c: '#8af07a' }); });
+  if (S.anim === 'bless') once('bless', 0.8, () => { sfx('heal'); for (const s of mates.concat([so])) burst(S, s.x, s.y - 18, 4, ['#ffd24a', '#fff8d0', '#ffe080'], 25, 50); S.fxs.push({ type: 'pillar', x: so.x, y: so.y, w: 24, t0: t, t1: t + 1.0, c: '#ffd24a' }); });
+}
 function stepScene(S, t, dt) {
   const back = S.live ? S.fightEnd : S.end - 1.2;
   const live = s => !s.dead && !(s.flee && t > s.flee), foeOk = e => !(S.duel && e.gen);
@@ -2000,12 +2057,15 @@ function stepScene(S, t, dt) {
     wound(S, tg, 1, t, p.from, Math.sign(tg.x - p.from.x) || 1, false);
   }
   if (S.duel) stepDuel(S, t, dt);
+  for (const h of (S.hits || [])) if (!h.done && t >= h.t) { h.done = true; const so = h.so; if (so.dead) continue; const dir = S.dash ? S.dash.dir : 1; so.hurtT = t; so.flashT = t; knock(so, dir, 80, 35); burst(S, so.x, so.y - 10, 6, S.k === 'poison' ? ['#7ad86a', '#b8f080', '#e8ffd0'] : HITC, 80, 25); sfx('hit'); }
+  for (const h of (S.healPops || [])) if (!h.done && t >= h.t) { h.done = true; const f = (S.byU.get(h.u.uid) || []).find(s => !s.dead); if (f) { popup(S, f.x, f.y - 28, '+' + h.n, 'heal'); sfx('heal'); } }
   for (const so of S.soldiers) {
     // knockback and airborne physics apply to everyone, the fallen included
     if (so.kbx) { so.x = clamp(so.x + so.kbx * dt, 4, SW - 4); so.kbx *= Math.exp(-7 * dt); if (Math.abs(so.kbx) < 2) so.kbx = 0; }
     if (so.z > 0) { so.vz -= 560 * dt; so.z += so.vz * dt; if (so.z <= 0) { so.z = 0; if (so.vz < -160) { S.dust.push({ x: so.x - 3, y: so.y, t: 0 }, { x: so.x + 3, y: so.y, t: 0 }); so.vz *= -0.3; so.z = 0.1; } else so.vz = 0; } }
     if (so.dead) continue;
     if (so.gen && S.duel) continue; // the duel drives the generals
+    if (S.mode === 'skill' && so.gen && so.side === S.casterSide && S.anim) { stepCaster(S, so, t, dt); continue; }
     const dir = so.side ? -1 : 1;
     so.ak = null; so.sp = false; so.charge = false;
     if (!S.live && so.gen && S.genHp[so.side][1] < S.genHp[so.side][0] && !so.hit1 && t >= 1.3) { so.hit1 = true; so.hurtT = t; so.flashT = t; knock(so, -dir, 90, 30); }
@@ -2076,12 +2136,26 @@ function drawScene(cx, S, t, dt) {
   cx.save(); cx.translate(sx, sy);
   for (const d of S.dust) { d.t += dt; cx.fillStyle = `rgba(180,160,120,${clamp(0.6 - d.t, 0, 1)})`; cx.fillRect(Math.round(d.x), Math.round(d.y - d.t * 8), 2, 2); }
   S.dust = S.dust.filter(d => d.t < 0.6);
+  // ability effects under the figures: magic circle, shield domes, light pillars, dash after-images
+  if (S.circle) { const C = S.circle; cx.save(); cx.globalAlpha = 0.8 * C.a; cx.strokeStyle = C.c; cx.lineWidth = 1.5; for (const r of [16, 11]) { cx.beginPath(); cx.ellipse(C.x, C.y, r, r * 0.35, 0, 0, 6.29); cx.stroke(); } for (let k = 0; k < 6; k++) { const a = t * 2 + k * 1.047; cx.fillStyle = '#fff'; cx.fillRect(Math.round(C.x + Math.cos(a) * 13), Math.round(C.y + Math.sin(a) * 4.5), 2, 1); } cx.restore(); if (R() < 0.5) burst(S, C.x + (R() - 0.5) * 24, C.y, 1, [C.c, '#ffffff'], 10, 40); }
+  for (const f of (S.fxs || [])) {
+    if (t < f.t0 || t > f.t1) continue; const k = (t - f.t0) / (f.t1 - f.t0), a = Math.min(1, k * 6, (1 - k) * 4);
+    cx.save(); cx.globalAlpha = 0.45 * a;
+    if (f.type === 'dome') { cx.fillStyle = f.c; cx.beginPath(); cx.ellipse(f.x, f.y - 6, f.w * 0.75, 18, 0, Math.PI, 0); cx.fill(); cx.globalAlpha = 0.9 * a; cx.strokeStyle = '#ffffff'; cx.lineWidth = 1; cx.beginPath(); cx.ellipse(f.x, f.y - 6, f.w * 0.75, 18, 0, Math.PI, 0); cx.stroke(); }
+    else { const g = cx.createLinearGradient(0, f.y - 60, 0, f.y); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(1, f.c); cx.fillStyle = g; cx.fillRect(Math.round(f.x - f.w / 2), Math.round(f.y - 60), Math.round(f.w), 62); if (R() < 0.6) burst(S, f.x + (R() - 0.5) * f.w, f.y - 4, 1, [f.c, '#ffffff'], 8, 45); }
+    cx.restore();
+  }
+  if (S.trail && S.trail.length) {
+    S.trail = S.trail.filter(p => t - p.t < 0.16);
+    const so = S.dash && S.dash.so;
+    if (so) for (const p of S.trail) { const age = (t - p.t) / 0.16; drawGenUnit(cx, { type: so.type, pal: so.pal, facing: p.face, state: 'idle', t, gen: true, alpha: 0.4 * (1 - age), dash: p.f, x: Math.round(p.x), y: Math.round(p.y) }, so.u.g); }
+  }
   const list = S.soldiers.slice().sort((a, c) => a.y - c.y);
   for (const so of list) {
     let state = so.state, alpha = 1;
     if (so.dead) { state = 'dead'; alpha = clamp((so.gen ? 2.6 : 1.3) - (t - so.deadT) * 1.1, 0, 1); if (alpha <= 0) continue; }
     if (so.flee && t > so.flee) alpha = clamp(1 - (t - so.flee) * 0.8, 0, 1);
-    const o = { type: so.type, pal: so.pal, facing: so.face || (so.side ? -1 : 1), state, t: t + so.off * 3, gen: so.gen, skin: so.skin, horse: so.horse, alpha, ak: so.ak, sp: so.sp, av: so.off > 0.5, charge: so.charge, heavy: so.heavy, blk: so.dead ? null : so.blk, roll: so.dead ? null : so.roll };
+    const o = { type: so.type, pal: so.pal, facing: so.face || (so.side ? -1 : 1), state, t: t + so.off * 3, gen: so.gen, skin: so.skin, horse: so.horse, alpha, ak: so.ak, sp: so.sp, av: so.off > 0.5, charge: so.charge, heavy: so.heavy, blk: so.dead ? null : so.blk, roll: so.dead ? null : so.roll, dash: so.dead ? null : so.dash };
     if (so.dead) o.dt = t - so.deadT; else if (so.hurtT != null && t >= so.hurtT && t - so.hurtT < 0.4) o.hurt = t - so.hurtT;
     if (so.gen) {
       const X = Math.round(so.x), Y = Math.round(so.y - so.z);
@@ -2120,7 +2194,7 @@ function drawScene(cx, S, t, dt) {
   }
   // impact rings and sparks
   for (const r of S.rings) {
-    r.t += dt; const k = r.t / 0.22; if (k >= 1) continue;
+    r.t += dt; const k = r.t / 0.22; if (k >= 1 || k < 0) continue;
     cx.globalAlpha = 1 - k; cx.strokeStyle = r.c; cx.lineWidth = 1.5; cx.beginPath(); cx.ellipse(r.x, r.y, 2 + r.r * k, (2 + r.r * k) * 0.8, 0, 0, 6.29); cx.stroke();
     if (k < 0.35) { cx.fillStyle = '#fff'; const s = Math.round(r.r * 0.6 * (1 - k)); cx.fillRect(Math.round(r.x) - s, Math.round(r.y), s * 2 + 1, 1); cx.fillRect(Math.round(r.x), Math.round(r.y) - s, 1, s * 2 + 1); }
     cx.globalAlpha = 1;
@@ -2757,11 +2831,11 @@ function skillTreeHTML(g, own) {
     for (const k of ks.filter(k => ABIL[k].t === t)) {
       const A = ABIL[k], got = have.includes(k), can = own && canLearn(g, k), st = got ? 'got' : can ? 'can' : 'lock';
       const why = got ? 'Learned' : g.lvl < SKILL_LV[t] ? `Needs Lv ${SKILL_LV[t]}` : A.req && !have.includes(A.req) ? `Needs ${ABIL[A.req].n}` : pts <= 0 ? 'No skill points' : 'Click to learn';
-      h += `<button class="snode ${st}" ${can ? `data-learn="${k}"` : 'disabled'} title="${A.n}: ${A.d} (${why})"><span class="si">${A.i}</span><span class="sn">${A.n}</span><span class="sd">${A.fx ? 'Active · ' : ''}${A.d.replace(/^Passive: /, '')}</span></button>`;
+      h += `<button class="snode ${st}" ${can ? `data-learn="${k}"` : 'disabled'} title="${A.n}: ${A.d} (${why})"><span class="si">${A.i}</span><span class="sn">${A.n}</span><span class="sd">${A.fx ? `Active · ${A.cd}-turn cooldown${got && !abilReadyK(g, k) ? ` · ready turn ${g.cds[k]}` : ''} · ` : ''}${A.d.replace(/^Passive: /, '')}</span></button>`;
     }
     h += `</div>`;
   }
-  return h + `</div>` + (abilReady(g) ? '' : `<div class="sub" style="color:var(--red)">Active skills recharging until turn ${g.cd}</div>`);
+  return h + `</div>`;
 }
 function armyPanel(g) {
   const P = $('#panel'); P.style.display = 'block';
