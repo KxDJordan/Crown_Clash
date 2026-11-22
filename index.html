@@ -2445,16 +2445,16 @@ function ensureEconomy() {
   if (!G.factions[BANDIT]) { const d = FACTION_DEF[BANDIT]; G.factions.push({ id: BANDIT, name: d.name, col: d.col, lord: d.lord, gold: 0, kxp: 0, klv: 1, tp: 0, techs: [], alive: true, scout: [], ore: 0, reserve: {} }); G.pals = G.factions.map(f => factionPal(f.col)); }
 }
 // ============ FOOD & HAPPINESS ============
-// Food: farmland in a kingdom's territory feeds it (plains 2, grassland 1, forest/hills/marsh/coast 0.5, rivers +1,
-// each town +2, Granary +4); every 6 soldiers (field armies and the reserve) eat 1 and every commander 1 a turn.
+// Food: farmland in a kingdom's territory feeds it (plains 1, grassland 0.5, forest/hills/marsh/coast 0.2, rivers +0.5,
+// each town +1, Granary +5); every 4 soldiers (field armies and the reserve) eat 1 and every commander 1 a turn.
 // Running out starves the army (squads lose soldiers) and angers every town.
-const TILE_FOOD = { [T.PLAINS]: 2, [T.GRASS]: 1, [T.FOREST]: 0.5, [T.HILLS]: 0.5, [T.SWAMP]: 0.5, [T.SAND]: 0.5 };
+const TILE_FOOD = { [T.PLAINS]: 1, [T.GRASS]: 0.5, [T.FOREST]: 0.2, [T.HILLS]: 0.2, [T.SWAMP]: 0.2, [T.SAND]: 0.2 };
 function foodReport(f) {
-  let prod = 0; for (let i = 0; i < G.N; i++) { const cid = G.terr[i]; if (cid < 0 || G.cities[cid].owner !== f) continue; prod += (TILE_FOOD[G.tiles[i]] || 0) + (G.river[i] ? 1 : 0); }
-  for (const c of fCities(f)) prod += 2 + (c.granary ? 4 : 0);
+  let prod = 0; for (let i = 0; i < G.N; i++) { const cid = G.terr[i]; if (cid < 0 || G.cities[cid].owner !== f) continue; prod += (TILE_FOOD[G.tiles[i]] || 0) + (G.river[i] ? 0.5 : 0); }
+  for (const c of fCities(f)) prod += 1 + (c.granary ? 5 : 0);
   if (crisisOn('famine')) prod *= 0.5;
   const soldiers = G.gens.filter(g => g.faction === f && g.status === 'field').reduce((a, g) => a + g.squads.reduce((s, q) => s + q.hp, 0), 0) + reserveTotal(f);
-  const eat = Math.ceil(soldiers / 6) + G.gens.filter(g => g.faction === f && g.status === 'field').length;
+  const eat = Math.ceil(soldiers / 4) + G.gens.filter(g => g.faction === f && g.status === 'field').length;
   prod = Math.round(prod); return { prod, eat, net: prod - eat, cap: 100 + 40 * fCities(f).length };
 }
 // Happiness (0-100) drifts each turn toward a target set by buildings, the capital, recent conquest, starvation,
@@ -2507,7 +2507,7 @@ function addKXP(f, n) {
 }
 const upCost = (c) => Math.round(120 * c.level * (hasTech(c.owner, 'masonry') ? 0.75 : 1));
 const BUILD = {
-  market: { n: 'Market', c: 100, lv: 1, d: '+25% town income, +5 happiness' }, granary: { n: 'Granary', c: 110, lv: 1, d: '+4 food, +2 population growth' },
+  market: { n: 'Market', c: 100, lv: 1, d: '+25% town income, +5 happiness' }, granary: { n: 'Granary', c: 110, lv: 1, d: '+5 food, +2 population growth' },
   watchtower: { n: 'Watchtower', c: 90, lv: 1, d: '+3 sight, sturdier garrison' }, barracks: { n: 'Barracks', c: 120, lv: 1, d: '+1 garrison squad, faster garrison regen, +10 reserve' },
   walls: { n: 'Walls', c: 150, lv: 2, d: 'Sealed walls & sturdier castellan' }, temple: { n: 'Temple', c: 140, lv: 2, d: '+20 happiness' },
   foundry: { n: 'Foundry', c: 160, lv: 2, d: '+3 ore a turn' },
