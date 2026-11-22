@@ -426,13 +426,13 @@ const TINFO = [
   { n: 'Desert', cost: 2, gold: 0 }, { n: 'Marsh', cost: 3, gold: 0 }];
 
 const TROOPS = {
-  infantry: { n: 'Infantry', atk: 16, def: 14, mov: 5, rng: 1, cost: 60, refill: 6, req: null, d: 'Solid line troops. Strong vs Spearmen.' },
-  spear: { n: 'Spearmen', atk: 15, def: 16, mov: 5, rng: 1, cost: 65, refill: 6, req: null, d: 'Shield-and-spear templars. Strong vs Cavalry & Armored Warriors.' },
-  armored: { n: 'Armored Warriors', atk: 17, def: 20, mov: 4, rng: 1, cost: 85, refill: 8, req: 'shields', d: 'Axemen in heavy plate. Strong vs Infantry & Blademasters.' },
-  blade: { n: 'Blademasters', atk: 21, def: 11, mov: 5, rng: 1, cost: 90, refill: 9, req: 'forge', d: 'Swift duelists. Strong vs Spearmen & Archers, but fragile.' },
-  priest: { n: 'Priests', atk: 9, def: 10, mov: 5, rng: 2, cost: 80, refill: 8, req: 'faith', d: 'Range 2. Heal the most wounded squad in their army after every clash. Strong vs Monsters.' },
-  archer: { n: 'Archers', atk: 15, def: 10, mov: 5, rng: 2, cost: 75, refill: 7, req: 'archery', d: 'Range 2, no melee counter vs volleys. Strong vs Priests.' },
-  cavalry: { n: 'Cavalry', atk: 18, def: 12, mov: 7, rng: 1, cost: 95, refill: 9, req: 'horse', d: 'Fast shock troops. Strong vs Infantry.' },
+  infantry: { n: 'Infantry', atk: 16, def: 14, mov: 5, rng: 1, cost: 60, refill: 6, ore: 1, req: null, d: 'Solid line troops. Strong vs Spearmen.' },
+  spear: { n: 'Spearmen', atk: 15, def: 16, mov: 5, rng: 1, cost: 65, refill: 6, ore: 1, req: null, d: 'Shield-and-spear templars. Strong vs Cavalry & Armored Warriors.' },
+  armored: { n: 'Armored Warriors', atk: 17, def: 20, mov: 4, rng: 1, cost: 85, refill: 8, ore: 2, req: 'shields', d: 'Axemen in heavy plate. Strong vs Infantry & Blademasters.' },
+  blade: { n: 'Blademasters', atk: 21, def: 11, mov: 5, rng: 1, cost: 90, refill: 9, ore: 2, req: 'forge', d: 'Swift duelists. Strong vs Spearmen & Archers, but fragile.' },
+  priest: { n: 'Priests', atk: 9, def: 10, mov: 5, rng: 2, cost: 80, refill: 8, ore: 1, req: 'faith', d: 'Range 2. Heal the most wounded squad in their army after every clash. Strong vs Monsters.' },
+  archer: { n: 'Archers', atk: 15, def: 10, mov: 5, rng: 2, cost: 75, refill: 7, ore: 1, req: 'archery', d: 'Range 2, no melee counter vs volleys. Strong vs Priests.' },
+  cavalry: { n: 'Cavalry', atk: 18, def: 12, mov: 7, rng: 1, cost: 95, refill: 9, ore: 2, req: 'horse', d: 'Fast shock troops. Strong vs Infantry.' },
 };
 // matchups: infantry > spearmen > cavalry > infantry; archers > priests > monsters (monsters arrive later)
 const BEATS = { infantry: ['spear'], spear: ['cavalry', 'armored'], cavalry: ['infantry'], archer: ['priest'], priest: ['monster'], monster: [], mage: ['armored'], armored: ['infantry', 'blade'], blade: ['spear', 'archer'] };
@@ -449,7 +449,7 @@ const CLASSES = {
 };
 const TECHS = [
   { id: 'agri', n: 'Agriculture', c: 1, req: [], br: 'Economy', d: '+15% gold income' },
-  { id: 'mining', n: 'Mining', c: 1, req: [], br: 'Economy', d: 'Hills yield +1 gold' },
+  { id: 'mining', n: 'Mining', c: 1, req: [], br: 'Economy', d: 'Hills yield +1 gold · Mines +1 ore' },
   { id: 'trade', n: 'Trade Routes', c: 2, req: ['agri'], br: 'Economy', d: '+20% gold income' },
   { id: 'masonry', n: 'Masonry', c: 1, req: [], br: 'Economy', d: 'City upgrades & walls -25% cost' },
   { id: 'banking', n: 'Banking', c: 3, req: ['trade'], br: 'Economy', d: '+25% gold income' },
@@ -498,6 +498,7 @@ const FACTION_DEF = [
   { name: 'Verdant League', col: '#3c9c44', lord: 'ai' },
   { name: 'Umbral Throne', col: '#8e4cc0', lord: 'ai' },
   { name: 'Free Towns', col: '#8a8270', lord: 'neutral' },
+  { name: 'Bandits', col: '#6b4a32', lord: 'bandit' },
 ];
 const NEUTRAL = 4;
 function factionPal(col) { const c = hex(col); return { c, main: rgb(c), dark: rgb(c, 0.6), deep: rgb(c, 0.38), light: rgb(mix(c, [255, 255, 255], 0.45)) }; }
@@ -623,7 +624,7 @@ function genWorld(seed, o = {}) {
   }
   const g = { seed, W, H, N, shape, shoals, tiles, elev: Array.from(elev), sea, river: Array.from(river), rnext: Array.from(rnext), comp: Array.from(comp), mainComp: best, temp: Array.from(temp) };
   g.tiles = Array.from(tiles);
-  placeCities(g, o.kingdoms || 4, o.towns || 2);
+  placeCities(g, o.kingdoms || 4, o.towns || 2); placeMines(g);
   return g;
 }
 
@@ -632,6 +633,22 @@ function cityScore(g, i) {
   const base = { [T.GRASS]: 3, [T.PLAINS]: 3, [T.SAND]: 2.4, [T.FOREST]: 1.6, [T.HILLS]: 2.2, [T.DESERT]: 1, [T.SNOW]: 0.6, [T.SWAMP]: 0.2 }[k];
   if (base === undefined) return -1;
   return base + (g.river[i] ? 1.4 : 0) + hash2(i, 9, g.seed) * 0.6;
+}
+// mines: ore nodes a few tiles from towns (every capital gets one); a kingdom earns their ore while they lie in its territory
+function placeMines(g) {
+  const { W } = g, mines = [], taken = new Set(g.cities.map(c => c.y * W + c.x));
+  const ok = i => g.comp[i] === g.mainComp && !taken.has(i) && [T.HILLS, T.GRASS, T.PLAINS, T.FOREST, T.SAND, T.DESERT, T.SNOW].includes(g.tiles[i]) && !mines.some(m => man(m.x, m.y, i % W, (i / W) | 0) < 3);
+  for (const c of g.cities) {
+    if (!c.capital && hash2(c.x, c.y, g.seed + 61) > 0.75) continue;
+    let best = -1, bs = -1;
+    for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
+      const d = Math.abs(dx) + Math.abs(dy), x = c.x + dx, y = c.y + dy; if (d < 2 || d > 3 || x < 1 || y < 1 || x >= W - 1 || y >= g.H - 1) continue;
+      const i = y * W + x; if (!ok(i)) continue; const sc = (g.tiles[i] === T.HILLS ? 2 : 0) + hash2(i, 62, g.seed);
+      if (sc > bs) { bs = sc; best = i; }
+    }
+    if (best >= 0) { mines.push({ x: best % W, y: (best / W) | 0 }); taken.add(best); }
+  }
+  g.mines = mines;
 }
 function placeCities(g, K = 4, towns = 2) {
   const { W, N } = g, cand = [];
@@ -831,7 +848,7 @@ function renderWorldTerrain() {
     }
   }
   // feature sprites
-  const cityT = new Set(G.cities.map(c => c.y * W + c.x));
+  const cityT = new Set(G.cities.map(c => c.y * W + c.x).concat((G.mines || []).map(m => m.y * W + m.x)));
   let volcano = false;
   for (let y = 0; y < H; y++) {
     // filler peaks behind each pair of side-by-side mountain tiles, so no bare ground shows between them
@@ -848,7 +865,7 @@ function renderWorldTerrain() {
     const cold = G.temp[i] < 0.3, hot = G.temp[i] > 0.75;
     let n = null;
     if (k === T.FOREST) n = cold ? (h(2) < 0.6 ? 'snowpines' : 'pines') : h(3) < 0.035 ? 'autumn' : pick2(['oaks', 'pines', 'mixed', 'oaks_rk', 'bigoaks', 'mixed_rk', 'oak', 'oaks'], h(4));
-    else if (k === T.HILLS) n = h(2) < 0.025 ? 'mine' : h(2) < 0.035 ? 'crystal' : h(2) < 0.15 ? 'rockhill' : pick2(['hill_s', 'hill', 'hill_b'], h(3));
+    else if (k === T.HILLS) n = h(2) < 0.035 ? 'crystal' : h(2) < 0.15 ? 'rockhill' : pick2(['hill_s', 'hill', 'hill_b'], h(3));
     else if (k === T.MOUNT) { if (hot && !volcano && h(5) < 0.1) { n = 'volcano'; volcano = true; } else n = cold ? pick2(['snowmount', 'snowmount2'], h(3)) : h(4) < 0.25 ? 'snowmount' : 'mount'; }
     else if (k === T.SNOW) n = h(2) < 0.15 ? 'snowpines' : h(2) < 0.2 ? 'rocks' : null;
     else if (k === T.DESERT) n = h(2) < 0.07 ? 'rocks' : h(2) < 0.09 ? 'deadtree' : null;
@@ -857,6 +874,7 @@ function renderWorldTerrain() {
     if (n) drawAt(cx, n, cxp, by + (k === T.MOUNT ? 4 : 0));
   }
   }
+  for (const m of (G.mines || [])) drawAt(cx, 'mine', m.x * WT + HW, m.y * WT + WT - 1);
   terrainCv = cv;
   sparkles = [];
   for (let n = 0; n < 900; n++) { const px = Math.floor(R() * PW), py = Math.floor(R() * PH); if (E[py * PW + px] < sea - 0.02) sparkles.push([px, py, R() * 6.28, 0.6 + R()]); }
@@ -1266,6 +1284,7 @@ const hireCost = g => 50 + g.stars * 55 + (g.lvl - 1) * 15;
 const upkeep = g => 2 + g.stars + g.squads.length * 2;
 const costMul = f => hasTech(f, 'conscript') ? 0.75 : 1;
 function gainXP(g, xp) {
+  if (g.captain || g.faction === BANDIT) return 0;
   g.xp += xp; let ups = 0; const m0 = sqMax(g);
   while (g.xp >= xpNeed(g.lvl) && g.lvl < 30) {
     g.xp -= xpNeed(g.lvl); g.lvl++; ups++; const gr = CLASSES[g.cls].g;
@@ -1346,13 +1365,13 @@ const canLearn = (g, k) => { const A = ABIL[k]; return !!A && A.cls === g.cls &&
 function learnSkill(g, k) { if (!canLearn(g, k)) return false; skillsOf(g).push(k); return true; }
 function autoLearn(g) { for (let n = 0; n < 8 && skillPts(g) > 0; n++) { const c = Object.keys(ABIL).filter(k => canLearn(g, k)); if (!c.length) break; skillsOf(g).push(pick(c)); } }
 function passives(g) {
-  const P = { a: 1, d: 1, ra: 1, ghp: 0, size: 0, mv: 0, fav: 0, sdmg: 0, cmd: 0 }; if (!g || g.temp) return P;
+  const P = { a: 1, d: 1, ra: 1, ghp: 0, size: 0, mv: 0, fav: 0, sdmg: 0, cmd: 0 }; if (!g || g.temp || g.captain) return P;
   for (const k of skillsOf(g)) { const p = ABIL[k] && ABIL[k].p; if (!p) continue; for (const q in p) if (q === 'a' || q === 'd' || q === 'ra') P[q] *= p[q]; else P[q] += p[q]; }
   return P;
 }
 const genMaxHp = g => 10 + passives(g).ghp;
 const ABIL_CD = 3;
-const abilitiesOf = g => g.temp ? [] : skillsOf(g).filter(k => ABIL[k] && ABIL[k].fx);
+const abilitiesOf = g => g.temp || g.captain ? [] : skillsOf(g).filter(k => ABIL[k] && ABIL[k].fx);
 // every active skill has its own cooldown (turns) and its own opening scene in battle
 const ABIL_CDS = { warcry: 2, rally: 3, laststand: 4, stalwart: 2, oath: 3, kcharge: 3, crusade: 5, phalanx: 2, menace: 3, fortress: 4, lance: 2, breach: 3, warpath: 4, arrows: 3, hawkeye: 2, poison: 4, meteor: 3, bless: 2, lightning: 4, lightheal: 4 };
 //   dash: the General dashes through the enemy lines to behind them, cutting soldiers down, then dashes back
@@ -1371,8 +1390,11 @@ function makeCastellan(city) {
   const st = clamp(1 + Math.floor(city.level / 2), 1, 4);
   const g = makeGeneral(city.owner, st, pick(['Fighter', 'Lancer', 'Berserker']));
   g.temp = true; g.city = city.id; g.name = 'Castellan ' + g.name.split(' ')[0];
-  g.lvl = city.level; g.atk += city.level; g.def += city.level + (city.walls ? 4 : 0) + (hasTech(city.owner, 'masonry') ? 2 : 0);
-  const n = clamp(1 + city.level + (city.barracks ? 1 : 0), 1, 5), types = ['spear', 'infantry', 'archer'];
+  // the garrison commander's level doubles with every town level: Lv1 town -> Lv3, Lv2 -> Lv5, Lv3 -> Lv10, Lv4 -> Lv20, Lv5 -> Lv30
+  g.lvl = clamp(Math.round(1.25 * 2 ** city.level), 2, 30); const gr = CLASSES[g.cls].g;
+  for (let l = 1; l < g.lvl; l++) { g.atk += ri(1, gr[0]); g.def += ri(1, gr[1]); g.ldr += ri(1, gr[2] + 1); g.cmd += ri(0, gr[3]); }
+  g.def += (city.walls ? 4 : 0) + (hasTech(city.owner, 'masonry') ? 2 : 0);
+  const n = clamp(1 + city.level + (city.barracks ? 1 : 0), 1, 5), types = city.level >= 4 ? ['armored', 'spear', 'archer', 'infantry', 'cavalry'] : city.level >= 3 ? ['spear', 'armored', 'archer', 'infantry'] : ['spear', 'infantry', 'archer'];
   const hp = Math.max(1, Math.round(sqMax(g) * city.garrison));
   for (let k = 0; k < n; k++) g.squads.push({ type: types[k % 3], hp });
   return g;
@@ -2289,6 +2311,8 @@ function newGame(world, kname, o = {}) {
   G.factions = FACTION_DEF.map((f, i) => ({ id: i, name: i === 0 ? kname : f.name, col: f.col, lord: f.lord, gold: i === NEUTRAL ? 0 : gold, kxp: 0, klv: 1, tp: 1, techs: [], alive: i === NEUTRAL || i < K, out: i !== NEUTRAL && i >= K, scout: [] }));
   G.pals = G.factions.map(f => factionPal(f.col));
   G.crisis = o.crisis ? { next: 12 + ri(0, 4), cur: null } : null;
+  for (const F of G.factions) { F.ore = 40; F.reserve = F.id < NEUTRAL ? { infantry: 10, spear: 10 } : {}; if (F.id === BANDIT) F.alive = true; }
+  for (const c of G.cities) c.pop = Math.round(popMax(c) * 0.6);
   G.gens = []; GID = 1;
   for (let f = 0; f < K; f++) {
     const c = capitalOf(f);
@@ -2296,7 +2320,7 @@ function newGame(world, kname, o = {}) {
     placeGen(g, c.x, c.y); G.gens.push(g); g.mp = worldMove(g);
   }
   cityCache.clear(); portCache.clear(); genReset(); recolorCache.clear();
-  computeTerritory(); renderWorldTerrain();
+  computeTerritory(); ensureEconomy(); placeBanditCamps(); renderWorldTerrain();
 }
 function placeGen(g, x, y) {
   const q = [[x, y]], seen = new Set([y * G.W + x]);
@@ -2340,6 +2364,53 @@ function crisisTick() {
   }
   if (k === 'revolt') computeTerritory();
   sfx('gong'); logMsg(`Crisis: ${X.n}! ${X.d}`); toast(`<i class="ico ico-${X.ico}"></i> <b>${X.n}!</b> ${X.d}`, 7000);
+}
+// ============ ORE, POPULATION, RESERVES ============
+const BANDIT = 5;
+const popMax = c => [0, 20, 35, 55, 80, 110][c.level] + (c.capital ? 10 : 0);
+const popRegen = c => 2 + c.level;
+const reserveCap = f => 20 + fCities(f).reduce((a, c) => a + 10 + (c.barracks ? 10 : 0), 0);
+const reserveTotal = f => Object.values(G.factions[f].reserve || {}).reduce((a, n) => a + n, 0);
+const mineOwner = m => tileOwner(m.y * G.W + m.x);
+const MINE_ORE = 6;
+const oreIncome = f => (G.mines || []).filter(m => mineOwner(m) === f).length * (MINE_ORE + (hasTech(f, 'mining') ? 1 : 0)) + (fCities(f).some(c => c.capital) ? 4 : 0);
+// recruiting n soldiers of a type at a town: gold and ore per soldier, plus one of the town's people each
+const recruitCost = (f, type, n) => ({ gold: Math.round(TROOPS[type].cost / 10 * n * costMul(f)), ore: TROOPS[type].ore * n, pop: n });
+function canRecruit(f, c, type, n) { const F = G.factions[f], k = recruitCost(f, type, n); return troopUnlocked(f, type) && c.owner === f && F.gold >= k.gold && F.ore >= k.ore && c.pop >= n && reserveTotal(f) + n <= reserveCap(f); }
+function recruit(f, c, type, n) {
+  if (!canRecruit(f, c, type, n)) return false; const F = G.factions[f], k = recruitCost(f, type, n);
+  F.gold -= k.gold; F.ore -= k.ore; c.pop -= n; F.reserve[type] = (F.reserve[type] || 0) + n; return true;
+}
+// a General in friendly territory forms new squads and fills gaps from the kingdom's reserve
+function formSquad(g, type) {
+  const F = G.factions[g.faction], n = Math.min(F.reserve[type] || 0, sqMax(g)); if (n < 1 || g.squads.length >= maxSquads(g)) return 0;
+  F.reserve[type] -= n; g.squads.push({ type, hp: n }); return n;
+}
+function refillFromReserve(g) {
+  const F = G.factions[g.faction]; let got = 0;
+  for (const s of g.squads) { const n = Math.min(Math.max(0, sqMax(g) - s.hp), F.reserve[s.type] || 0); s.hp += n; F.reserve[s.type] -= n; got += n; }
+  return got;
+}
+const refillNeed = g => { const F = G.factions[g.faction]; return g.squads.reduce((a, s) => a + Math.min(Math.max(0, sqMax(g) - s.hp), F.reserve[s.type] || 0), 0); };
+// battalions: soldiers raised straight from a town's people under a captain (not a General: no skills or levels)
+const BATTALION = { gold: 80, ore: 10, pop: 24 };
+const battalions = f => G.gens.filter(g => g.faction === f && g.captain && g.status === 'field').length;
+const genCount = f => fGens(f).filter(g => !g.captain).length;
+function canRaiseBattalion(f, c) { const F = G.factions[f]; return c.owner === f && F.gold >= BATTALION.gold && F.ore >= BATTALION.ore && c.pop >= BATTALION.pop && battalions(f) < fCities(f).length; }
+function raiseBattalion(f, c, type) {
+  if (!canRaiseBattalion(f, c)) return null; const F = G.factions[f];
+  const g = makeGeneral(f, 1, 'Fighter'); g.captain = true; g.name = 'Captain ' + g.name.split(' ')[0];
+  const t2 = troopUnlocked(f, type) ? type : 'infantry';
+  g.squads = [{ type: t2, hp: 12 }, { type: t2 === 'spear' ? 'infantry' : 'spear', hp: 12 }];
+  if (!placeGen(g, c.x, c.y)) { GID--; return null; }
+  F.gold -= BATTALION.gold; F.ore -= BATTALION.ore; c.pop -= BATTALION.pop; G.gens.push(g); g.mp = 0; return g;
+}
+// older saves and fresh games: fill in the new economy fields
+function ensureEconomy() {
+  if (!G.mines) placeMines(G);
+  for (const F of G.factions) { if (F.ore == null) F.ore = 20; if (!F.reserve) F.reserve = {}; }
+  for (const c of G.cities) if (c.pop == null) c.pop = Math.round(popMax(c) * 0.6);
+  if (!G.factions[BANDIT]) { const d = FACTION_DEF[BANDIT]; G.factions.push({ id: BANDIT, name: d.name, col: d.col, lord: d.lord, gold: 0, kxp: 0, klv: 1, tp: 0, techs: [], alive: true, scout: [], ore: 0, reserve: {} }); G.pals = G.factions.map(f => factionPal(f.col)); }
 }
 function incomeReport(f) {
   const per = new Map(); for (const c of G.cities) if (c.owner === f) per.set(c.id, 4 + c.level * 4);
@@ -2450,16 +2521,23 @@ function applyBattle(res, S, attG, tgt) {
   const ups = [];
   for (const x of res.gens) {
     const g = x.g;
-    if (g.temp) { const city = G.cities[g.city]; city.garrison = x.fell ? 0.1 : clamp(x.squads.reduce((a, s) => a + s.hp, 0) / (g.squads.length * 10), 0.1, 1); continue; }
+    if (g.temp) { const city = G.cities[g.city]; city.garrison = x.fell ? 0.1 : clamp(x.squads.reduce((a, s) => a + s.hp, 0) / Math.max(1, g.squads.length * sqMax(g)), 0.1, 1); continue; }
     const n = gainXP(g, x.xp); if (n && g.faction === 0) ups.push(`${g.name} → Lv${g.lvl}`);
-    if (x.fell) { g.status = 'wounded'; g.wound = 3; g.squads = []; g.x = -1; g.y = -1; }
+    if (x.fell) { g.squads = []; g.x = -1; g.y = -1; if (g.captain || g.faction === BANDIT) g.status = 'gone'; else { g.status = 'wounded'; g.wound = 3; } }
     else g.squads = x.squads;
     if (x.side === 0) g.mp = 0;
   }
   if (ups.length) toast('<i class="ico ico-star"></i> Level up: ' + ups.join(', '));
   const defName = S.city ? S.city.name : tgt.g ? tgt.g.name : '?';
   addKXP(attWon ? attF : S.defF, 30); addKXP(attWon ? S.defF : attF, 6);
-  if (attWon && S.city) {
+  for (const x of res.gens) if (x.fell && x.g.camp) {
+    const wF = x.side === 0 ? S.defF : attF, W = G.factions[wF]; if (W && wF < NEUTRAL) { W.gold += 120; W.ore = (W.ore || 0) + 20; }
+    logMsg(`${W ? W.name : 'Someone'} destroyed a bandit camp.`); if (wF === 0) { sfx('capture'); toast('<i class="ico ico-skull"></i> Bandit camp destroyed! +120 gold, +20 ore', 4000); }
+  }
+  if (attWon && S.city && attF === BANDIT) {
+    const c = S.city, O = G.factions[c.owner], loot = Math.min(O.gold, 30 + 25 * c.level); O.gold -= loot; c.garrison = 0.1; c.pop = Math.floor((c.pop || 0) / 2);
+    const msg = `Bandits plundered ${c.name}, stealing ${loot} gold`; logMsg(msg); if (c.owner === 0) toast('<i class="ico ico-alert"></i> ' + msg, 4000);
+  } else if (attWon && S.city) {
     const c = S.city, old = c.owner;
     c.owner = attF; c.garrison = 0.3; const wasCap = c.capital; c.capital = false;
     for (const g of G.gens) if (g.status === 'field' && g.x === c.x && g.y === c.y && g.faction !== attF) { g.status = 'field'; placeGen(g, c.x, c.y); }
@@ -2532,13 +2610,14 @@ async function aiTurn(f) {
     for (const k of ['market', 'walls', 'barracks']) if (!c[k] && F.gold > 400 && R() < 0.3) { F.gold -= buildCost(c, k); c[k] = true; }
   }
   // hire
-  for (let guard = 0; guard < 3 && fGens(f).length < genCap(f); guard++) {
+  for (let guard = 0; guard < 3 && genCount(f) < genCap(f); guard++) {
     const g = makeGeneral(f, clamp(1 + Math.floor(R() * 2 + R() * F.klv * 0.3), 1, 5));
     const cost = hireCost(g); if (F.gold < cost + 80) { GID--; break; }
     const cap = capitalOf(f); if (!cap || !placeGen(g, cap.x, cap.y)) break;
-    F.gold -= cost; g.squads = [{ type: troopUnlocked(f, CLASSES[g.cls].fav || 'infantry') ? (CLASSES[g.cls].fav || 'infantry') : 'infantry', hp: sqMax(g) }];
+    F.gold -= cost; g.squads = [];
     G.gens.push(g); g.mp = 0;
   }
+  if (F.gold > 260 && R() < 0.35) { const c = fCities(f).filter(c => canRaiseBattalion(f, c)).sort((a, b) => b.pop - a.pop)[0]; if (c) raiseBattalion(f, c, pick(['infantry', 'spear'])); }
   computeTerritory();
   for (const g of fieldGens(f).slice()) {
     if (g.status !== 'field' || !F.alive) continue;
@@ -2546,20 +2625,67 @@ async function aiTurn(f) {
   }
   $('#busy').style.display = 'none';
 }
+// AI recruiting: fill the reserve from the towns with the most people, keeping a little gold back
+function aiRecruit(f, type, need) {
+  const F = G.factions[f]; let got = 0;
+  for (const c of fCities(f).slice().sort((a, b) => b.pop - a.pop)) {
+    if (need <= 0) break; const per = recruitCost(f, type, 1);
+    const n = Math.min(need, c.pop, reserveCap(f) - reserveTotal(f), Math.floor((F.gold - 40) / Math.max(1, per.gold)), Math.floor(F.ore / Math.max(1, per.ore)));
+    if (n > 0 && recruit(f, c, type, n)) { need -= n; got += n; }
+  }
+  return got;
+}
 function aiRefit(g, F) {
-  if (!canRefit(g)) return;
-  for (const s of g.squads) { const c = Math.round(Math.max(0, sqMax(g) - s.hp) * TROOPS[s.type].refill * costMul(g.faction)); if (c > 0 && F.gold >= c + 30) { F.gold -= c; s.hp = sqMax(g); } }
-  while (g.squads.length < maxSquads(g)) {
-    const opts = Object.keys(TROOPS).filter(t => troopUnlocked(g.faction, t));
+  if (g.faction === BANDIT || !canRefit(g)) return;
+  const f = g.faction;
+  for (const s of g.squads) { const need = sqMax(g) - s.hp - (F.reserve[s.type] || 0); if (need > 0) aiRecruit(f, s.type, need); }
+  refillFromReserve(g);
+  for (let guard = 0; guard < 6 && g.squads.length < maxSquads(g); guard++) {
+    const opts = Object.keys(TROOPS).filter(t => troopUnlocked(f, t));
     const fav = CLASSES[g.cls].fav; const type = fav && opts.includes(fav) && R() < 0.4 ? fav : pick(opts);
-    const c = trainCost(g.faction, type); if (F.gold < c + 50) break; F.gold -= c; g.squads.push({ type, hp: sqMax(g) });
+    if ((F.reserve[type] || 0) < sqMax(g)) aiRecruit(f, type, sqMax(g) - (F.reserve[type] || 0));
+    if ((F.reserve[type] || 0) < 4 || !formSquad(g, type)) break;
   }
 }
 function defPower(tgt, f) {
   const S = battleSides({ faction: f, x: -9, y: -9, status: 'x' }, tgt);
   return S.def.reduce((a, g) => a + armyPower(g), 0);
 }
+// ============ BANDITS: camps in the wilds send raiders against the kingdoms; destroy a camp for its loot ============
+function placeBanditCamps() {
+  const W = G.W, want = Math.max(2, Math.round(G.N / 1600)), cand = [];
+  for (let i = 0; i < G.N; i++) {
+    const x = i % W, y = (i / W) | 0; if (G.comp[i] !== G.mainComp || TINFO[G.tiles[i]].cost >= 99 || tileOwner(i) >= 0 || cityAt(x, y) || armyAt(x, y) || (G.mines || []).some(m => m.x === x && m.y === y)) continue;
+    if (G.cities.some(c => man(c.x, c.y, x, y) < 6)) continue;
+    cand.push({ i, x, y, s: (G.tiles[i] === T.FOREST || G.tiles[i] === T.HILLS ? 1 : 0) + R() });
+  }
+  cand.sort((a, b) => b.s - a.s); let made = 0;
+  for (const c of cand) {
+    if (made >= want) break; if (G.gens.some(g => g.camp && man(g.x, g.y, c.x, c.y) < 10)) continue;
+    const g = makeGeneral(BANDIT, 2, pick(['Fighter', 'Berserker', 'Rogue'])); g.camp = true; g.name = 'Bandit Camp'; g.timer = 3 + ri(0, 3);
+    g.squads = ['infantry', 'archer', 'blade'].map(type => ({ type, hp: sqMax(g) }));
+    if (placeGen(g, c.x, c.y)) { G.gens.push(g); g.mp = 0; made++; } else GID--;
+  }
+}
+async function banditTurn() {
+  const F = G.factions[BANDIT]; if (!F) return;
+  for (const camp of G.gens.filter(g => g.camp && g.status === 'field')) {
+    camp.mp = 0;
+    if (--camp.timer > 0 || G.turn < 4) continue;
+    camp.timer = 6 + ri(0, 3);
+    if (G.gens.filter(r => r.home === camp.id && r.status === 'field').length >= 2) continue;
+    const spot = DIRS.map(([dx, dy]) => [camp.x + dx, camp.y + dy]).find(([x, y]) => x >= 0 && y >= 0 && x < G.W && y < G.H && TINFO[G.tiles[y * G.W + x]].cost < 99 && !armyAt(x, y) && !cityAt(x, y));
+    if (!spot) continue;
+    const r = makeGeneral(BANDIT, clamp(1 + Math.floor(G.turn / 25), 1, 4), pick(['Fighter', 'Rogue', 'Berserker']));
+    r.raider = true; r.home = camp.id; r.name = 'Raider ' + r.name.split(' ')[0];
+    const n = 2 + (G.turn > 20 ? 1 : 0); r.squads = []; for (let k = 0; k < n; k++) r.squads.push({ type: pick(['infantry', 'blade', 'archer', 'cavalry']), hp: Math.round(sqMax(r) * 0.8) });
+    if (!placeGen(r, spot[0], spot[1])) { GID--; continue; }
+    G.gens.push(r); r.mp = worldMove(r); logMsg('Bandit raiders ride out of their camp.');
+  }
+  for (const g of G.gens.filter(g => g.faction === BANDIT && g.raider && g.status === 'field')) await aiArmy(g, F);
+}
 async function aiArmy(g, F) {
+  if (g.camp) return;
   aiRefit(g, F);
   const ms = maxSquads(g), hpSum = g.squads.reduce((a, s) => a + s.hp, 0);
   const weak = g.squads.length < Math.ceil(ms * 0.5) || hpSum < g.squads.length * 6;
@@ -2571,8 +2697,9 @@ async function aiArmy(g, F) {
   } else if (!weak || F.gold < 60) {
     const my = armyPower(g); let bs = 1e9;
     const cands = [];
-    for (const e of G.gens) if (e.status === 'field' && e.faction !== g.faction) cands.push({ kind: 'army', g: e, x: e.x, y: e.y });
-    for (const c of G.cities) if (c.owner !== g.faction && !armyAt(c.x, c.y)) cands.push({ kind: 'city', c, x: c.x, y: c.y });
+    const band = g.faction === BANDIT; // raiders go after the kingdoms only, never the Free Towns
+    for (const e of G.gens) if (e.status === 'field' && e.faction !== g.faction && (!band || e.faction < NEUTRAL)) cands.push({ kind: 'army', g: e, x: e.x, y: e.y });
+    for (const c of G.cities) if (c.owner !== g.faction && !armyAt(c.x, c.y) && (!band || c.owner < NEUTRAL)) cands.push({ kind: 'city', c, x: c.x, y: c.y });
     for (const t of cands) {
       const [fi, fd] = adjBest(t.x, t.y); if (fi < 0 || fd > 1e8) continue;
       const dp = defPower(t, g.faction); const ratio = my / Math.max(1, dp);
@@ -2619,16 +2746,18 @@ function askDefend(g, t) {
 async function endTurn() {
   if (UI.busy) return; sfx('drum'); UI.busy = true; deselect(); $('#bEnd').disabled = true;
   for (let f = 1; f < 4; f++) { await aiTurn(f); if (checkEndGame()) { UI.busy = false; return; } }
+  await banditTurn(); if (checkEndGame()) { UI.busy = false; return; }
   // economy
   const terrCount = new Array(5).fill(0); for (let i = 0; i < G.N; i++) { const o = tileOwner(i); if (o >= 0) terrCount[o]++; }
   for (let f = 0; f < 4; f++) {
     const F = G.factions[f]; if (!F.alive) continue;
     researchTick(f);
+    F.ore = (F.ore || 0) + oreIncome(f);
     const rep = incomeReport(f); F.gold += rep.net;
     if (F.gold < 0) { F.gold = 0; for (const g of fieldGens(f)) for (const s of g.squads) s.hp = Math.max(1, s.hp - 1); if (f === 0) toast('<i class="ico ico-alert"></i> Treasury empty! Unpaid troops are deserting.'); }
     addKXP(f, Math.floor(terrCount[f] / 7));
   }
-  for (const c of G.cities) c.garrison = Math.min(1, c.garrison + 0.12 + (c.barracks ? 0.08 : 0));
+  for (const c of G.cities) { c.garrison = Math.min(1, c.garrison + 0.12 + (c.barracks ? 0.08 : 0)); c.pop = Math.min(popMax(c), (c.pop || 0) + popRegen(c)); }
   for (const g of G.gens) if (g.status === 'wounded') { g.wound--; if (g.wound <= 0) { const cap = capitalOf(g.faction); if (cap && placeGen(g, cap.x, cap.y)) { if (g.faction === 0) toast(`${g.name} has recovered and returns to ${cap.name}.`); } else g.wound = 1; } }
   G.turn++;
   crisisTick();
@@ -2657,6 +2786,7 @@ function loadGame() {
     const s = localStorage.getItem(SAVE_KEY); if (!s) return false; const o = JSON.parse(s);
     G = o; GID = o.GID || 1000; G.pals = G.factions.map(f => factionPal(f.col));
     for (const g of G.gens) { g.ax = g.x; g.ay = g.y; skillsOf(g); }
+    computeTerritory(); ensureEconomy(); if (!G.gens.some(g => g.camp)) placeBanditCamps();
     for (const F of G.factions) for (const g of (F.scout || [])) skillsOf(g);
     cityCache.clear(); portCache.clear(); genReset(); recolorCache.clear(); computeTerritory(); renderWorldTerrain(); return true;
   } catch (e) { return false; }
@@ -2706,9 +2836,12 @@ function drawWorld(ts) {
     const spr = factionSprite(citySpriteName(c), c.owner);
     ctx.drawImage(spr, Math.round(c.x * WT + WT / 2 - spr.width / 2), c.y * WT + WT + 2 - spr.height);
   }
+  // mines fly the banner of the kingdom that holds them
+  for (const m of (G.mines || [])) { const o = mineOwner(m); if (o >= 0 && o < NEUTRAL) drawBanner(ctx, m.x * WT + WT / 2 + 7, m.y * WT + WT - 3, G.pals[o], t, false); }
   // armies
   const arm = G.gens.filter(g => g.status === 'field').sort((a, b) => (a.ay ?? a.y) - (b.ay ?? b.y));
   for (const g of arm) {
+    if (g.camp) { drawAt(ctx, 'camp', g.x * WT + WT / 2, g.y * WT + WT - 1); continue; }
     const ax = g.ax ?? g.x, ay = g.ay ?? g.y, X = 0, Y = 0, pal = G.pals[g.faction];
     const onCity = cityAt(g.x, g.y) ? 9 : 0;
     ctx.save(); ctx.translate(Math.round(ax * WT) + onCity, Math.round(ay * WT) + onCity * 0.4); ctx.scale(WT / 16, WT / 16);
@@ -2797,7 +2930,7 @@ function renderHUD() {
   $('#hud').innerHTML = `<span class="chip"><span class="sw" style="background:${F.col}"></span><b>${F.name}</b></span>
   <span class="chip"><i class="ico ico-crown"></i> Lv <b>${F.klv}</b> <span class="xpbar"><i style="width:${pct}%"></i></span></span>
   <span class="chip"><i class="ico ico-coins"></i> <b>${F.gold}</b> <span style="color:${rep.net >= 0 ? 'var(--green)' : 'var(--red)'}">${rep.net >= 0 ? '+' : ''}${rep.net}</span></span>
-  <span class="chip"><i class="ico ico-helmet"></i> <b>${fGens(0).length}</b>/${genCap(0)}</span><span class="chip"><i class="ico ico-castle"></i> <b>${fCities(0).length}</b></span>
+  <span class="chip"><i class="ico ico-helmet"></i> <b>${genCount(0)}</b>/${genCap(0)}</span><span class="chip" title="Ore (+per turn)"><i class="ico ico-rocks"></i> <b>${F.ore || 0}</b> <span style="color:var(--green)">+${oreIncome(0)}</span></span><span class="chip" title="Reserve troops / capacity"><i class="ico ico-people"></i> <b>${reserveTotal(0)}</b>/${reserveCap(0)}</span><span class="chip"><i class="ico ico-castle"></i> <b>${fCities(0).length}</b></span>
   <span class="chip" style="${F.tp && !F.res ? 'box-shadow:0 0 0 2px #fff,0 0 0 4px var(--green)' : ''}" title="${F.res ? 'Researching ' + TECH[F.res.id].n : 'Tech Points'}"><i class="ico ico-scroll"></i> <b>${F.tp}</b> TP${F.res ? ` · ${TECH[F.res.id].icon} ${F.res.left}t` : ''}</span><span class="chip">Turn <b>${G.turn}</b></span>${G.crisis && G.crisis.cur ? `<span class="chip" title="${CRISES[G.crisis.cur.k].d}"><i class="ico ico-${CRISES[G.crisis.cur.k].ico}"></i> <b style="color:var(--red)">${CRISES[G.crisis.cur.k].n}</b> ${G.crisis.cur.left} turns</span>` : ''}`;
 }
 const UNIT_ICO = { infantry: 'swords', spear: 'spear', archer: 'bow', cavalry: 'helmet', armored: 'shield', blade: 'clash', priest: 'heart' };
@@ -2817,7 +2950,8 @@ function renderPanel() {
   if (UI.selCity) return cityPanel(UI.selCity);
   if (UI.tile != null) {
     const i = UI.tile, k = G.tiles[i], o = tileOwner(i);
-    P.style.display = 'block'; P.innerHTML = `<h3><i class="ico ico-${TILE_ICO[k]}"></i> ${TINFO[k].n}${G.river[i] ? ' · River' : ''}</h3><div class="sub">Move cost: ${TINFO[k].cost >= 99 ? 'impassable' : TINFO[k].cost} · Gold yield: ${TINFO[k].gold + (G.river[i] ? 1 : 0)}${o >= 0 ? ` · Territory of <b>${G.cities[G.terr[i]].name}</b> (${G.factions[o].name})` : ' · Unclaimed'}</div><div class="row"><button class="btn sm" id="pX">Close</button></div>`;
+    const mine = (G.mines || []).find(m => m.y * G.W + m.x === i);
+    P.style.display = 'block'; P.innerHTML = (mine ? `<h3><i class="ico ico-rocks"></i> Mine</h3><div class="sub">Produces <b>${MINE_ORE + (o >= 0 && o < NEUTRAL && hasTech(o, 'mining') ? 1 : 0)} ore</b> a turn for the kingdom whose territory it lies in${o >= 0 && o < NEUTRAL ? ` — now <b>${G.factions[o].name}</b>` : ' — unclaimed; grow a nearby town or take it to claim it'}. Ore pays for recruiting soldiers.</div>` : '') + `<h3><i class="ico ico-${TILE_ICO[k]}"></i> ${TINFO[k].n}${G.river[i] ? ' · River' : ''}</h3><div class="sub">Move cost: ${TINFO[k].cost >= 99 ? 'impassable' : TINFO[k].cost} · Gold yield: ${TINFO[k].gold + (G.river[i] ? 1 : 0)}${o >= 0 ? ` · Territory of <b>${G.cities[G.terr[i]].name}</b> (${G.factions[o].name})` : ' · Unclaimed'}</div><div class="row"><button class="btn sm" id="pX">Close</button></div>`;
     $('#pX').onclick = deselect; return;
   }
   P.style.display = 'none';
@@ -2843,24 +2977,22 @@ function armyPanel(g) {
   const xpP = Math.round(g.xp / xpNeed(g.lvl) * 100);
   let h = `<div class="ph"><span id="pport"></span><div><div class="nm">${g.name}</div><div><span class="stars">${'★'.repeat(g.stars)}</span> ${g.cls} · Lv ${g.lvl}</div><div class="sub"><span class="sw" style="background:${F.col}"></span>${F.name}</div><div class="xpbar" style="width:120px;margin-top:3px"><i style="width:${xpP}%"></i></div></div></div>`;
   h += genStatsHTML(g);
-  h += skillTreeHTML(g, own);
+  h += g.captain ? '<div class="sub">A captain leading a battalion: no skills or levels, and not counted against your General cap.</div>' : skillTreeHTML(g, own);
   h += `<h4>Squads ${g.squads.length}/${maxSquads(g)}</h4>` + (g.squads.length ? g.squads.map((s, k) => sqRow(s, k, g, own)).join('') : '<div class="sub">No squads — this general fights alone!</div>');
   if (own) {
     h += `<div class="sub" style="margin-top:6px">Movement left: <b>${g.mp}</b>/${worldMove(g)}${UI.targets.length ? ' · <span style="color:var(--red)">Red tiles can be attacked</span>' : ''}</div>`;
     if (canRefit(g)) {
-      const rc = refillCost(g);
-      h += `<div class="row"><button class="btn" id="pRefill" ${rc === 0 || rc > F.gold ? 'disabled' : ''}><i class="ico ico-people"></i> Refill all (${rc}g)</button></div>`;
-      if (g.squads.length < maxSquads(g)) {
-        h += `<h4>Train squad</h4><div class="row">` + Object.keys(TROOPS).map(t => troopUnlocked(0, t) ? `<button class="btn sm" data-train="${t}" ${trainCost(0, t) > F.gold ? 'disabled' : ''} title="${TROOPS[t].d}">${TROOPS[t].n} ${trainCost(0, t)}g</button>` : `<button class="btn sm" disabled title="Requires ${TECH[TROOPS[t].req].n}"><i class="ico ico-lock"></i> ${TROOPS[t].n}</button>`).join('') + `</div>`;
-      }
-    } else h += `<div class="sub" style="margin-top:6px"><i class="ico ico-alert"></i> Return to your territory to refill or train squads.</div>`;
+      const need = refillNeed(g);
+      h += `<div class="row"><button class="btn" id="pRefill" ${need ? '' : 'disabled'}><i class="ico ico-people"></i> Refill from reserve${need ? ` (+${need})` : ''}</button></div>`;
+      if (g.squads.length < maxSquads(g)) h += `<h4>Form squad</h4><div class="sub">From the reserve (${reserveTotal(0)} soldiers):</div><div class="row">` + Object.keys(TROOPS).filter(t => troopUnlocked(0, t)).map(t => `<button class="btn sm" data-form="${t}" ${(F.reserve[t] || 0) > 0 ? '' : 'disabled'} title="${TROOPS[t].d}">${TROOPS[t].n} (${F.reserve[t] || 0})</button>`).join('') + `</div><div class="sub">Recruit soldiers at your towns to fill the reserve.</div>`;
+    } else h += `<div class="sub" style="margin-top:6px"><i class="ico ico-alert"></i> Return to your territory to refill or form squads.</div>`;
   }
   const c = cityAt(g.x, g.y); if (c) h += `<div class="row"><button class="btn sm" id="pCity">View ${c.name}</button></div>`;
   P.innerHTML = h; $('#pport').appendChild(portraitImg(g, 64));
   P.querySelectorAll('[data-learn]').forEach(b => b.onclick = () => { if (learnSkill(g, b.dataset.learn)) { sfx('learn'); toast(`${g.name} learned <b>${ABIL[b.dataset.learn].n}</b>.`); saveGame(); renderHUD(); armyPanel(g); } });
-  const rb = $('#pRefill'); if (rb) rb.onclick = () => { const rc = refillCost(g); if (F.gold >= rc) { F.gold -= rc; g.squads.forEach(s => s.hp = sqMax(g)); sfx('coin'); toast('Squads replenished.'); afterWorldChange(); } };
-  P.querySelectorAll('[data-train]').forEach(b => b.onclick = () => { const t = b.dataset.train, cst = trainCost(0, t); if (F.gold < cst || g.squads.length >= maxSquads(g)) return; F.gold -= cst; sfx('coin'); g.squads.push({ type: t, hp: sqMax(g) }); afterWorldChange(); });
-  P.querySelectorAll('[data-dis]').forEach(b => b.onclick = () => { g.squads.splice(+b.dataset.dis, 1); afterWorldChange(); });
+  const rb = $('#pRefill'); if (rb) rb.onclick = () => { const n = refillFromReserve(g); if (n) { sfx('coin'); toast(`${n} soldiers join from the reserve.`); afterWorldChange(); } };
+  P.querySelectorAll('[data-form]').forEach(b => b.onclick = () => { const n = formSquad(g, b.dataset.form); if (n) { sfx('coin'); afterWorldChange(); } });
+  P.querySelectorAll('[data-dis]').forEach(b => b.onclick = () => { const s = g.squads.splice(+b.dataset.dis, 1)[0]; if (s && canRefit(g)) { const back = Math.min(s.hp, reserveCap(0) - reserveTotal(0)); if (back > 0) F.reserve[s.type] = (F.reserve[s.type] || 0) + back; } afterWorldChange(); });
   const pc = $('#pCity'); if (pc) pc.onclick = () => { UI.sel = null; UI.selCity = c; UI.reach = null; UI.targets = []; renderPanel(); };
 }
 function cityPanel(c) {
@@ -2869,15 +3001,25 @@ function cityPanel(c) {
   const rep = incomeReport(c.owner), row = rep.rows.find(r => r.c === c);
   let tiles = 0; for (let i = 0; i < G.N; i++) if (G.terr[i] === c.id) tiles++;
   let h = `<h3>${c.capital ? '♛ ' : ''}${c.name}</h3><div class="sub"><span class="sw" style="background:${F.col}"></span>${F.name} · Level ${c.level}/5 · ${tiles} tiles</div>
-  <div class="stats"><div>Income<b>${row ? Math.round(row.val * rep.mult) : 0}</b></div><div>Garrison<b>${Math.round(c.garrison * 100)}%</b></div><div>Squads<b>${clamp(1 + c.level + (c.barracks ? 1 : 0), 1, 6)}</b></div><div>Walls<b>${c.walls ? '<i class="ico ico-check"></i>' : '—'}</b></div></div>`;
+  <div class="stats"><div>Income<b>${row ? Math.round(row.val * rep.mult) : 0}</b></div><div>Garrison<b>${Math.round(c.garrison * 100)}%</b></div><div>People<b>${c.pop || 0}/${popMax(c)}</b></div><div>Walls<b>${c.walls ? '<i class="ico ico-check"></i>' : '—'}</b></div></div>`;
   h += `<h4>Buildings</h4>` + Object.keys(BUILD).map(k => `<div class="sq"><span class="t">${BUILD[k].n}</span><span class="sub" style="flex:1">${BUILD[k].d}</span>${c[k] ? '<i class="ico ico-check"></i>' : own ? `<button class="btn sm" data-b="${k}" ${buildCost(c, k) > F.gold ? 'disabled' : ''}>${buildCost(c, k)}g</button>` : '—'}</div>`).join('');
   if (own && c.level < 5) h += `<div class="row"><button class="btn gold" id="pUp" ${upCost(c) > F.gold ? 'disabled' : ''}><i class="ico ico-up"></i> Upgrade to Lv ${c.level + 1} (${upCost(c)}g)</button></div><div class="sub">Higher levels grow territory, income and the castellan's garrison.</div>`;
-  if (!own) h += `<div class="sub" style="margin-top:6px">Defended by a castellan with ${clamp(1 + c.level + (c.barracks ? 1 : 0), 1, 6)} squads at ${Math.round(c.garrison * 100)}% strength. Select an army and attack from an adjacent tile.</div>`;
+  if (own) {
+    h += `<h4>Recruit</h4><div class="sub">Into the kingdom reserve: <b>${reserveTotal(0)}/${reserveCap(0)}</b> soldiers · <b>${F.ore}</b> ore · <b>${c.pop}</b> people here (+${popRegen(c)}/turn)</div>` + Object.keys(TROOPS).map(t => {
+      if (!troopUnlocked(0, t)) return `<div class="sq"><i class="ico ico-lock"></i><span class="t">${TROOPS[t].n}</span><span class="sub" style="flex:1">Needs ${TECH[TROOPS[t].req].n}</span></div>`;
+      const k5 = recruitCost(0, t, 5);
+      return `<div class="sq"><i class="ico ico-${UNIT_ICO[t]}"></i><span class="t">${TROOPS[t].n} <span class="sub">(${F.reserve[t] || 0})</span></span><span class="sub" style="flex:1">${k5.gold}g · ${k5.ore} ore per 5</span><button class="btn sm" data-rec="${t}:5" ${canRecruit(0, c, t, 5) ? '' : 'disabled'}>+5</button><button class="btn sm" data-rec="${t}:10" ${canRecruit(0, c, t, 10) ? '' : 'disabled'}>+10</button></div>`;
+    }).join('');
+    h += `<div class="row"><button class="btn" id="pBat" ${canRaiseBattalion(0, c) ? '' : 'disabled'}><i class="ico ico-flag"></i> Raise battalion (${BATTALION.gold}g · ${BATTALION.ore} ore · ${BATTALION.pop} people)</button></div><div class="sub">A captain leads 2 squads raised straight from this town's people — no General needed. Battalions ${battalions(0)}/${fCities(0).length}.</div>`;
+  }
+  if (!own) h += `<div class="sub" style="margin-top:6px">Defended by a Lv ${clamp(Math.round(1.25 * 2 ** c.level), 2, 30)} castellan with ${clamp(1 + c.level + (c.barracks ? 1 : 0), 1, 6)} squads at ${Math.round(c.garrison * 100)}% strength. Select an army and attack from an adjacent tile.</div>`;
   const a = armyAt(c.x, c.y); if (a) h += `<div class="row"><button class="btn sm" id="pArmy">View ${a.name}</button></div>`;
   P.innerHTML = h;
   P.querySelectorAll('[data-b]').forEach(b => b.onclick = () => { const k = b.dataset.b, cst = buildCost(c, k); if (F.gold < cst) return; F.gold -= cst; c[k] = true; cityCache.clear(); afterWorldChange(); });
   const up = $('#pUp'); if (up) up.onclick = () => { const cst = upCost(c); if (F.gold < cst) return; F.gold -= cst; c.level++; computeTerritory(); toast(`${c.name} grows to level ${c.level}!`); afterWorldChange(); };
   const pa = $('#pArmy'); if (pa) pa.onclick = () => selectArmy(a);
+  P.querySelectorAll('[data-rec]').forEach(b => b.onclick = () => { const [t, n] = b.dataset.rec.split(':'); if (recruit(0, c, t, +n)) { sfx('coin'); afterWorldChange(); } });
+  const pb = $('#pBat'); if (pb) pb.onclick = () => { const g = raiseBattalion(0, c, 'infantry'); if (g) { sfx('horn'); toast(`${g.name} raises a battalion at ${c.name}.`); afterWorldChange(); } };
 }
 
 // ============ MODALS ============
@@ -2917,7 +3059,7 @@ function generalsModal() {
 }
 const SCOUT_COST = 40;
 function tavernModal() {
-  const F = G.factions[0], full = fGens(0).length >= genCap(0);
+  const F = G.factions[0], full = genCount(0) >= genCap(0);
   let h = `<h3><i class="ico ico-handshake"></i> Tavern — Scout for Generals</h3><div class="sub">Pay scouts to find commanders for hire. Higher kingdom levels attract better (★) generals. Hired generals appear at your capital with one squad. ${full ? '<b style="color:var(--red)">General cap reached — raise your Kingdom level to command more.</b>' : ''}</div>
   <div class="row"><button class="btn gold" id="tScout" ${F.gold < SCOUT_COST ? 'disabled' : ''}><i class="ico ico-spy"></i> Scout (${SCOUT_COST}g)</button><span class="sub">Gold: ${F.gold}</span></div><div class="cards" style="margin-top:10px">`;
   F.scout.forEach((g, k) => {
@@ -2933,9 +3075,9 @@ function tavernModal() {
     tavernModal(); renderHUD();
   };
   document.querySelectorAll('[data-hire]').forEach(b => b.onclick = () => {
-    const g = F.scout[+b.dataset.hire], cost = hireCost(g); if (F.gold < cost || fGens(0).length >= genCap(0)) return;
+    const g = F.scout[+b.dataset.hire], cost = hireCost(g); if (F.gold < cost || genCount(0) >= genCap(0)) return;
     const cap = capitalOf(0); if (!placeGen(g, cap.x, cap.y)) { toast('No room near the capital!'); return; }
-    F.gold -= cost; const fav = CLASSES[g.cls].fav || 'infantry'; g.squads = [{ type: troopUnlocked(0, fav) ? fav : 'infantry', hp: sqMax(g) }]; g.mp = 0;
+    F.gold -= cost; g.squads = []; g.mp = 0;
     G.gens.push(g); F.scout.splice(+b.dataset.hire, 1);
     toast(`${g.name} joins your cause!`); logMsg(`${g.name} (${g.cls}) hired`);
     closeModal(); centerOn(g.x, g.y); selectArmy(g);
