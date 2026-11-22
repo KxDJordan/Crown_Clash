@@ -3210,10 +3210,42 @@ const SLOTS = 3, slotKey = n => 'cc_save_s' + n;
 function migrateSave() { try { const old = localStorage.getItem(SAVE_KEY); if (old && !localStorage.getItem(slotKey(1))) localStorage.setItem(slotKey(1), old); if (old) localStorage.removeItem(SAVE_KEY); } catch (e) { } }
 function slotInfo(n) { try { const s = localStorage.getItem(slotKey(n)); if (!s) return null; const o = JSON.parse(s); return { name: o.factions[0].name, turn: o.turn, at: o.savedAt || 0, size: o.W + '×' + o.H, towns: o.cities.filter(c => c.owner === 0).length, diff: (o.opts && o.opts.diff) || 'normal' }; } catch (e) { return null; } }
 const latestSlot = () => { let best = 0, bt = -1; for (let n = 1; n <= SLOTS; n++) { const i = slotInfo(n); if (i && i.at > bt) { bt = i.at; best = n; } } return best; };
-function saveGame() { try { G.slot = G.slot || 1; G.savedAt = Date.now(); const o = Object.assign({}, G, { pals: undefined, terr: undefined, GID }); localStorage.setItem(slotKey(G.slot), JSON.stringify(o)); } catch (e) { } }
+// Saves pack the per-tile map arrays into base64 typed arrays (elevation/temperature quantized to 1/10000):
+// raw JSON floats made a save 300-600KB and could overflow the browser's storage quota, which used to fail silently.
+const PACK_KEYS = ['tiles', 'elev', 'river', 'rnext', 'comp', 'temp', 'seen'], PACK_F = { elev: 1, temp: 1 };
+function b64(u8) { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); }
+function unb64(s) { const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u.buffer; }
+function packArr(a, f) {
+  if (f) return { p: 'f', d: b64(new Uint8Array(Int16Array.from(a, v => Math.max(-32767, Math.min(32767, Math.round(v * 10000)))).buffer)) };
+  let mn = 0, mx = 0; for (const v of a) { if (v < mn) mn = v; if (v > mx) mx = v; }
+  const T = mn >= -128 && mx <= 127 ? Int8Array : mn >= -32768 && mx <= 32767 ? Int16Array : Int32Array;
+  return { p: T.BYTES_PER_ELEMENT, d: b64(new Uint8Array(T.from(a).buffer)) };
+}
+function unpackArr(o) {
+  if (!o || !o.p) return o; if (o.p === 'f') return Array.from(new Int16Array(unb64(o.d)), v => v / 10000);
+  return Array.from(new ({ 1: Int8Array, 2: Int16Array, 4: Int32Array }[o.p])(unb64(o.d)));
+}
+let saveWarned = false;
+function saveGame() {
+  if (!G || !G.factions) return false;
+  try {
+    G.slot = G.slot || 1; G.savedAt = Date.now(); const o = Object.assign({}, G, { pals: undefined, terr: undefined, GID });
+    for (const k of PACK_KEYS) if (Array.isArray(G[k])) o[k] = packArr(G[k], PACK_F[k]);
+    if (o.log && o.log.length > 60) o.log = o.log.slice(-60);
+    localStorage.setItem(slotKey(G.slot), JSON.stringify(o)); saveWarned = false; return true;
+  } catch (e) {
+    console.error('Save failed', e);
+    if (!saveWarned) { saveWarned = true; toast(`<i class="ico ico-alert"></i> <b>Could not save the game</b> — browser storage is full. Delete an old save slot from the main menu.`, 6000); }
+    return false;
+  }
+}
+// Keep mid-turn progress (hires, moves) when the tab is closed or backgrounded, but never mid-battle.
+addEventListener('pagehide', () => { if (G && G.factions && typeof UI !== 'undefined' && !UI.busy && $('#title').style.display === 'none') saveGame(); });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && G && G.factions && typeof UI !== 'undefined' && !UI.busy && $('#title').style.display === 'none') saveGame(); });
 function loadGame(n) {
   try {
     n = n || latestSlot(); const s = n && localStorage.getItem(slotKey(n)); if (!s) return false; const o = JSON.parse(s); o.slot = n;
+    for (const k of PACK_KEYS) o[k] = unpackArr(o[k]);
     G = o; GID = o.GID || 1000; G.pals = G.factions.map(f => factionPal(f.col));
     for (const g of G.gens) { g.ax = g.x; g.ay = g.y; skillsOf(g); }
     computeTerritory(); ensureEconomy(); if (!G.gens.some(g => g.camp)) placeBanditCamps();
@@ -3483,7 +3515,7 @@ function kingdomModal() {
   <h4>Chronicle</h4><div class="sub" style="max-height:120px;overflow:auto">${G.log.slice().reverse().map(s => `<div>${s}</div>`).join('') || 'Nothing yet.'}</div>
   <h4>Game</h4><div class="row"><button class="btn sm" id="kSave"><i class="ico ico-book"></i> Save</button><button class="btn sm" id="kScn"><i class="ico ico-gear"></i> Battle scenes: ${SET.scenes ? 'On' : 'Off'}</button><button class="btn sm" id="kVol"><i class="ico ico-gear"></i> Sound: ${['Off', 'Low', 'High'][SET.vol]}</button><button class="btn sm" id="kMenu"><i class="ico ico-left"></i> Save & main menu</button><button class="btn sm red" id="kQuit">Abandon & new game</button></div>`;
   openModal(h);
-  $('#kSave').onclick = () => { saveGame(); toast('Game saved.'); };
+  $('#kSave').onclick = () => { if (saveGame()) toast('Game saved.'); };
   $('#kScn').onclick = () => { SET.scenes = !SET.scenes; saveSet(); kingdomModal(); };
   $('#kVol').onclick = () => { SET.vol = (SET.vol + 2) % 3; saveSet(); kingdomModal(); sfx('coin'); };
   $('#kMenu').onclick = () => { saveGame(); location.reload(); };
@@ -3525,7 +3557,7 @@ function tavernModal() {
     F.gold -= cost; g.squads = []; g.mp = 0;
     G.gens.push(g); F.scout.splice(+b.dataset.hire, 1);
     toast(`${g.name} joins your cause!`); logMsg(`${g.name} (${g.cls}) hired`);
-    closeModal(); centerOn(g.x, g.y); selectArmy(g);
+    saveGame(); closeModal(); centerOn(g.x, g.y); selectArmy(g);
   });
 }
 function techModal() {
