@@ -148,6 +148,22 @@ th{color:var(--dim);font-weight:400;font-size:15px;letter-spacing:1px;text-trans
 #title h1 .amp{font-family:var(--fb);font-weight:400;font-size:1.25em;line-height:.8;color:var(--text);text-shadow:0 4px 0 #0c0e16}
 #title p{color:var(--dim);margin:18px 0 18px;font-size:20px}#title p.sub{font-size:16px;margin:14px 0 0}
 #title .btn{min-height:40px;font-size:20px;padding:8px 16px 7px}
+#title{background-size:cover;background-position:center bottom;image-rendering:pixelated}
+.tmenu{display:flex;flex-direction:column;gap:8px;width:min(300px,80vw);margin:6px auto 14px}.tmenu .btn{width:100%}
+#tSetup{max-width:min(880px,94vw);text-align:left}
+.tsw{display:flex;gap:16px;align-items:flex-start}.tform{flex:1;min-width:0;display:flex;flex-direction:column;gap:7px}
+.trow{display:flex;align-items:center;gap:10px}.trow>span{flex:none;width:96px;font-size:17px;color:var(--dim)}
+.trow input[type=text]{flex:1;width:auto;text-align:left;font-size:18px;padding:5px 8px 4px}
+.seg{display:flex;flex-wrap:wrap;gap:4px}#title .seg .btn{min-height:32px;font-size:16px;padding:3px 9px 2px}
+.tprev{flex:none;width:min(300px,34vw);text-align:center}.tprev canvas{width:100%;image-rendering:pixelated;border:4px solid #3a2413;background:#123;display:block}
+.tprev .sub{margin:6px 0!important}#tCrisisInfo{margin:2px 0 0 106px!important;min-height:1.2em}
+.tbtns{justify-content:space-between;margin-top:12px}
+#tPanel{max-width:min(560px,92vw);text-align:left}#tPanel h3{margin:4px 0 8px;color:var(--accent)}#tPanel p{color:var(--text);font-size:17px;margin:6px 0}
+#tLoad{position:fixed;inset:0;z-index:46;display:none;align-items:center;justify-content:center;background:#0e1019aa}#tLoad .toast{font-size:22px;animation:none}
+#title{overflow-y:auto;align-items:flex-start}#title .tb{margin:auto}
+#title.setup h1,#title.setup .crest{display:none}#title.setup .tb{margin-top:auto;padding-top:18px}
+@media (max-width:640px){.tsw{flex-direction:column}.tprev{width:100%;display:flex;gap:8px;align-items:center}.tprev canvas{width:46%}#tCrisisInfo{margin-left:0!important}}
+@media (max-width:760px),(max-height:520px){.trow>span{width:76px;font-size:14px}.tform{gap:4px}#title .seg .btn{font-size:13px;min-height:26px;padding:2px 6px 1px}.trow input[type=text]{font-size:15px;padding:3px 6px 2px}#tCrisisInfo{margin-left:86px!important;font-size:13px!important}.tbtns{margin-top:6px}#title.setup .tb{padding:12px 12px 6px}}
 input[type=text]{font-family:var(--fb);font-size:20px;background:var(--inset);color:var(--text);border:2px solid var(--edge);border-radius:0;padding:7px 10px 6px;width:260px;text-align:center}
 /* notices */
 #toasts{position:fixed;top:62px;left:50%;transform:translateX(-50%);z-index:28;pointer-events:none;display:flex;flex-direction:column;gap:6px;align-items:center;width:max-content;max-width:92vw}
@@ -316,15 +332,32 @@ td,th{border-color:var(--edge2)}
  <div class="sbar" id="sbL"></div><div class="sbar" id="sbR"></div><div id="sban"></div><div id="sround"></div><div id="sskip">Tap to skip this clash</div><button class="btn sm" id="sskipall"><i class="ico ico-right"></i> Skip battle</button></div></div>
 <div id="title"><div class="tb"><div class="crest"></div>
  <h1>CROWN <span class="amp">&amp;</span> CLASH</h1>
- <p>Raise generals. Command armies. Conquer the realm.</p>
- <div class="row" style="justify-content:center"><input type="text" id="kname" value="Kingdom of Aster" maxlength="24"></div>
- <div class="row" style="justify-content:center;margin-top:10px">
-  <button class="btn" id="tReroll"><i class="ico ico-map"></i> New Map</button>
-  <button class="btn gold" id="tStart">Begin Conquest</button>
-  <button class="btn blue" id="tCont" style="display:none">Continue</button>
+ <p class="tag">Raise generals. Command armies. Conquer the realm.</p>
+ <div id="tMenu" class="tmenu">
+  <button class="btn gold" id="tCont" style="display:none"><i class="ico ico-book"></i> Continue</button>
+  <button class="btn gold" id="tNew"><i class="ico ico-crown"></i> New Game</button>
+  <button class="btn" id="tOpts"><i class="ico ico-gear"></i> Options</button>
+  <button class="btn" id="tHelp"><i class="ico ico-scroll"></i> How to Play</button>
  </div>
- <p class="sub" id="tSeed" style="margin-top:12px"></p>
+ <div id="tSetup" style="display:none">
+  <div class="tsw">
+   <div class="tform">
+    <label class="trow"><span>Kingdom</span><input type="text" id="kname" value="Kingdom of Aster" maxlength="24"></label>
+    <div class="trow"><span>Map size</span><div class="seg" data-opt="size"><button class="btn sm" data-v="s">Small</button><button class="btn sm" data-v="m">Medium</button><button class="btn sm" data-v="l">Large</button></div></div>
+    <div class="trow"><span>Land</span><div class="seg" data-opt="shape"><button class="btn sm" data-v="continent">Continent</button><button class="btn sm" data-v="pangaea">Pangaea</button><button class="btn sm" data-v="twin">Twin Continents</button><button class="btn sm" data-v="inland">Inland Sea</button><button class="btn sm" data-v="archi">Archipelago</button></div></div>
+    <div class="trow"><span>Rivals</span><div class="seg" data-opt="enemies"><button class="btn sm" data-v="1">1</button><button class="btn sm" data-v="2">2</button><button class="btn sm" data-v="3">3</button></div></div>
+    <div class="trow"><span>Towns each</span><div class="seg" data-opt="towns"><button class="btn sm" data-v="1">1</button><button class="btn sm" data-v="2">2</button><button class="btn sm" data-v="3">3</button></div></div>
+    <div class="trow"><span>Treasury</span><div class="seg" data-opt="gold"><button class="btn sm" data-v="poor">Poor 150g</button><button class="btn sm" data-v="std">Standard 320g</button><button class="btn sm" data-v="rich">Rich 700g</button></div></div>
+    <div class="trow"><span>Crises</span><div class="seg" data-opt="crisis"><button class="btn sm" data-v="0">Off</button><button class="btn sm" data-v="1">On</button></div></div>
+    <p class="sub" id="tCrisisInfo"></p>
+   </div>
+   <div class="tprev"><canvas id="tMini"></canvas><p class="sub" id="tSeed"></p><button class="btn sm" id="tReroll"><i class="ico ico-map"></i> New Map</button></div>
+  </div>
+  <div class="row tbtns"><button class="btn" id="tBack"><i class="ico ico-left"></i> Back</button><button class="btn gold" id="tStart"><i class="ico ico-swords"></i> Begin Conquest</button></div>
+ </div>
+ <div id="tPanel" style="display:none"></div>
 </div></div>
+<div id="tLoad"><div class="toast">Forging the realm…</div></div>
 <div id="toasts"></div>
 <div id="rotate"><div class="ic">📱</div><h3>Rotate to landscape</h3><p class="sub">Crown &amp; Clash is built for landscape play.</p><button class="btn" onclick="document.body.classList.add('anyway')">Play anyway</button></div>
 <script>
@@ -425,21 +458,30 @@ let G = null; // game state
 
 function quantile(arr, q) { const a = Array.from(arr).sort((x, y) => x - y); return a[Math.floor(clamp(q, 0, 0.999) * a.length)]; }
 
-function genWorld(seed, W = 96, H = 66) {
+// new-game options: map size, land shape, kingdoms in play (player included), starting towns per kingdom
+const MAP_SIZES = { s: [64, 44], m: [96, 66], l: [128, 88] };
+const SHAPES = { continent: 'Continent', pangaea: 'Pangaea', twin: 'Twin Continents', inland: 'Inland Sea', archi: 'Archipelago' };
+const SEA_Q = { continent: 0.42, pangaea: 0.3, twin: 0.5, inland: 0.5, archi: 0.64 };
+function genWorld(seed, o = {}) {
   usedTown = new Set();
+  const [W, H] = MAP_SIZES[o.size] || MAP_SIZES.m, shape = SHAPES[o.shape] ? o.shape : 'continent';
   const N = W * H, s = seed % 1000003;
   const elev = new Float32Array(N), moist = new Float32Array(N), temp = new Float32Array(N);
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const i = y * W + x, nx = x / W, ny = y / H;
-    let e = fbm(x / 15, y / 15, s, 5);
+    let e = shape === 'archi' ? fbm(x / 7, y / 7, s, 4) : fbm(x / 15, y / 15, s, 5);
     const dx = (nx - 0.5) * 2, dy = (ny - 0.5) * 2;
-    const dd = Math.sqrt(dx * dx * 0.85 + dy * dy);
-    e = e + 0.3 - Math.pow(dd, 2.4) * 0.6 + (fbm(x / 6, y / 6, s + 77, 3) - 0.5) * 0.1;
+    const dd = Math.sqrt(dx * dx * 0.85 + dy * dy), det = (fbm(x / 6, y / 6, s + 77, 3) - 0.5) * 0.1;
+    if (shape === 'pangaea') e = e + 0.3 - Math.pow(dd, 3.2) * 0.55 + det;
+    else if (shape === 'archi') e = e + 0.3 - Math.pow(dd, 2.4) * 0.3 + (vnoise(x / 11, y / 11, s + 55) - 0.5) * 0.5 + det;
+    else if (shape === 'twin') { const d2 = Math.min(Math.hypot((nx - 0.27) / 0.27, (ny - 0.5) / 0.46), Math.hypot((nx - 0.73) / 0.27, (ny - 0.5) / 0.46)); e = e + 0.3 - Math.pow(d2, 2.4) * 0.55 - Math.max(0, 0.1 - Math.abs(nx - 0.5)) * 4 + det; }
+    else if (shape === 'inland') e = e + 0.3 - Math.pow(dd, 2.4) * 0.6 - Math.max(0, 0.42 - dd) * 2.6 + det;
+    else e = e + 0.3 - Math.pow(dd, 2.4) * 0.6 + det;
     elev[i] = e;
     moist[i] = fbm(x / 11 + 30, y / 11 - 20, s + 9, 4);
     temp[i] = ny + (fbm(x / 13, y / 13, s + 21, 3) - 0.5) * 0.4;
   }
-  const sea = quantile(elev, 0.42), deep = quantile(elev, 0.26), hills = quantile(elev, 0.86), mount = quantile(elev, 0.935), low = quantile(elev, 0.62);
+  const sq = SEA_Q[shape], sea = quantile(elev, sq), deep = quantile(elev, sq * 0.62), hills = quantile(elev, 0.86), mount = quantile(elev, 0.935), low = quantile(elev, 0.62);
   const mq = quantile(moist, 0.5);
   const tiles = new Uint8Array(N);
   for (let i = 0; i < N; i++) {
@@ -463,13 +505,28 @@ function genWorld(seed, W = 96, H = 66) {
       if (adj && elev[i] < sea + (hills - sea) * 0.12 && hash2(x, y, s + 3) < 0.75) tiles[i] = T.SAND;
     }
   }
-  // main component
-  const comp = new Int16Array(N).fill(-1); let best = -1, bestSize = 0, cid = 0;
-  for (let i = 0; i < N; i++) {
-    if (comp[i] >= 0 || TINFO[tiles[i]].cost >= 99) continue;
-    const st = [i]; comp[i] = cid; let sz = 0;
-    while (st.length) { const c = st.pop(); sz++; const cx = c % W, cy = (c / W) | 0; for (const [dx, dy] of DIRS) { const xx = cx + dx, yy = cy + dy; if (xx < 0 || yy < 0 || xx >= W || yy >= H) continue; const j = yy * W + xx; if (comp[j] < 0 && TINFO[tiles[j]].cost < 99) { comp[j] = cid; st.push(j); } } }
-    if (sz > bestSize) { bestSize = sz; best = cid; } cid++;
+  // land components; every sizeable landmass gets linked to the largest by walkable shoals (no ships in this game)
+  let comp, best, sizes;
+  const comps = () => {
+    comp = new Int16Array(N).fill(-1); sizes = []; best = -1; let bestSize = 0, cid = 0;
+    for (let i = 0; i < N; i++) {
+      if (comp[i] >= 0 || TINFO[tiles[i]].cost >= 99) continue;
+      const st = [i]; comp[i] = cid; let sz = 0;
+      while (st.length) { const c = st.pop(); sz++; const cx = c % W, cy = (c / W) | 0; for (const [dx, dy] of DIRS) { const xx = cx + dx, yy = cy + dy; if (xx < 0 || yy < 0 || xx >= W || yy >= H) continue; const j = yy * W + xx; if (comp[j] < 0 && TINFO[tiles[j]].cost < 99) { comp[j] = cid; st.push(j); } } }
+      sizes.push(sz); if (sz > bestSize) { bestSize = sz; best = cid; } cid++;
+    }
+  };
+  comps(); const shoals = [];
+  for (let pass = 0; pass < 12; pass++) {
+    const other = sizes.findIndex((sz, c) => c !== best && sz >= 10); if (other < 0) break;
+    // breadth-first search from that landmass across the sea to the main one (mountains block)
+    const from = new Int32Array(N).fill(-2), q = [];
+    for (let i = 0; i < N; i++) if (comp[i] === other) { from[i] = -1; q.push(i); }
+    let hit = -1;
+    for (let h = 0; h < q.length && hit < 0; h++) { const c = q[h], cx = c % W, cy = (c / W) | 0; for (const [dx, dy] of DIRS) { const xx = cx + dx, yy = cy + dy; if (xx < 1 || yy < 1 || xx >= W - 1 || yy >= H - 1) continue; const j = yy * W + xx; if (from[j] !== -2 || tiles[j] === T.MOUNT) continue; from[j] = c; if (comp[j] === best) { hit = j; break; } q.push(j); } }
+    if (hit < 0) { sizes[other] = 0; continue; }
+    for (let c = from[hit]; c >= 0 && comp[c] !== other; c = from[c]) if (tiles[c] <= 1) { tiles[c] = T.SAND; elev[c] = Math.max(elev[c], sea + 0.008); shoals.push(c); }
+    comps();
   }
   // rivers
   const rnext = new Int32Array(N).fill(-1), river = new Uint8Array(N);
@@ -495,9 +552,9 @@ function genWorld(seed, W = 96, H = 66) {
       river[a] = 1; rnext[a] = path[p + 1];
     }
   }
-  const g = { seed, W, H, N, tiles, elev: Array.from(elev), sea, river: Array.from(river), rnext: Array.from(rnext), comp: Array.from(comp), mainComp: best, temp: Array.from(temp) };
+  const g = { seed, W, H, N, shape, shoals, tiles, elev: Array.from(elev), sea, river: Array.from(river), rnext: Array.from(rnext), comp: Array.from(comp), mainComp: best, temp: Array.from(temp) };
   g.tiles = Array.from(tiles);
-  placeCities(g);
+  placeCities(g, o.kingdoms || 4, o.towns || 2);
   return g;
 }
 
@@ -507,7 +564,7 @@ function cityScore(g, i) {
   if (base === undefined) return -1;
   return base + (g.river[i] ? 1.4 : 0) + hash2(i, 9, g.seed) * 0.6;
 }
-function placeCities(g) {
+function placeCities(g, K = 4, towns = 2) {
   const { W, N } = g, cand = [];
   for (let i = 0; i < N; i++) { const sc = cityScore(g, i); const x = i % W, y = (i / W) | 0; if (sc >= 1.5 && x > 1 && y > 1 && x < W - 2 && y < g.H - 2) cand.push(i); }
   const cities = []; const dist = (a, b) => Math.hypot(a % W - b % W, ((a / W) | 0) - ((b / W) | 0));
@@ -518,22 +575,22 @@ function placeCities(g) {
   const caps = [];
   let first = capCand[Math.floor(hash2(3, 3, g.seed) * capCand.length)];
   caps.push(first);
-  for (let f = 1; f < 4; f++) {
+  for (let f = 1; f < K; f++) {
     let bi = -1, bs = -1;
     for (const c of capCand) { const md = Math.min(...caps.map(k => dist(k, c))); const sc = md + cityScore(g, c) * 2; if (sc > bs) { bs = sc; bi = c; } }
     caps.push(bi);
   }
   caps.forEach((c, f) => add(c, f, true));
-  // second town per faction
-  for (let f = 0; f < 4; f++) {
+  // extra starting towns near each capital
+  for (let n = 1; n < towns; n++) for (let f = 0; f < K; f++) {
     let bi = -1, bs = -1;
-    for (const c of cand) { const d = dist(c, caps[f]); if (d < 5 || d > 9) continue; const md = Math.min(...cities.map(k => dist(k.y * W + k.x, c))); if (md < 5) continue; const sc = cityScore(g, c) + hash2(c, f, g.seed); if (sc > bs) { bs = sc; bi = c; } }
+    for (const c of cand) { const d = dist(c, caps[f]); if (d < 5 || d > 9 + n * 2) continue; const md = Math.min(...cities.map(k => dist(k.y * W + k.x, c))); if (md < 5) continue; const sc = cityScore(g, c) + hash2(c, f, g.seed); if (sc > bs) { bs = sc; bi = c; } }
     if (bi >= 0) add(bi, f, false);
   }
   // neutral towns
   const shuffled = cand.slice().sort((a, b) => hash2(a, 11, g.seed) - hash2(b, 11, g.seed));
   for (const c of shuffled) {
-    if (cities.length >= Math.round(N / 200)) break; // ~32 towns on the default map
+    if (cities.length >= Math.max(Math.round(N / 200), K * towns + 8)) break; // ~32 towns on the default map
     const md = Math.min(...cities.map(k => dist(k.y * W + k.x, c)));
     if (md >= 6.5) { add(c, NEUTRAL, false); cities[cities.length - 1].level = R() < 0.35 ? 2 : 1; }
   }
@@ -640,44 +697,56 @@ function citySpriteName(c) {
 // ============ WORLD RENDER ============
 let terrainCv = null, territoryCv = null, sparkles = [];
 const GTEX = { [T.GRASS]: ['grass', 'grass_fl'], [T.PLAINS]: ['grass_fl', 'grass'], [T.FOREST]: ['grass', 'grass'], [T.HILLS]: ['grass', 'grass_fl'], [T.MOUNT]: ['dirt_rk', 'dirt'], [T.SNOW]: ['snow', 'snow_rk'], [T.DESERT]: ['sand', 'sand_pl'], [T.SWAMP]: ['swamp', 'grass'], [T.SAND]: ['sand', 'sand'] };
+// value noise at a fixed pixel scale (same values as vnoise for px, py >= 0), with the lattice hashed once up front
+function noiseField(scale, s, PW, PH) {
+  const gw = Math.floor(PW / scale) + 3, gh = Math.floor(PH / scale) + 3, L = new Float32Array(gw * gh);
+  for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) L[j * gw + i] = hash2(i, j, s);
+  return (px, py) => {
+    const x = px / scale, y = py / scale, xi = x | 0, yi = y | 0, xf = x - xi, yf = y - yi, u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf), o = yi * gw + xi;
+    const a = L[o], b = L[o + 1], c = L[o + gw], d = L[o + gw + 1], ab = a + (b - a) * u; return ab + (c + (d - c) * u - ab) * v;
+  };
+}
 function renderWorldTerrain() {
   const { W, H, seed } = G, PW = W * WT, PH = H * WT, s = seed % 99991;
   const [cv, cx] = mkCanvas(PW, PH);
   const img = cx.createImageData(PW, PH), d = img.data;
   const E = new Float32Array(PW * PH);
-  const el = (x, y) => G.elev[clamp(y, 0, H - 1) * W + clamp(x, 0, W - 1)];
+  const n12 = noiseField(12, s + 5, PW, PH), n5 = noiseField(5, s + 6, PW, PH), n22a = noiseField(22, s + 300, PW, PH), n22b = noiseField(22, s + 400, PW, PH), n30 = noiseField(30, s + 9, PW, PH), n45 = [];
+  const EL = G.elev, el = (x, y) => EL[(y < 0 ? 0 : y > H - 1 ? H - 1 : y) * W + (x < 0 ? 0 : x > W - 1 ? W - 1 : x)];
   for (let py = 0; py < PH; py++) {
     const fy = (py + 0.5) / WT - 0.5, y0 = Math.floor(fy), ty = fy - y0;
     for (let px = 0; px < PW; px++) {
       const fx = (px + 0.5) / WT - 0.5, x0 = Math.floor(fx), tx = fx - x0;
-      const e = lerp(lerp(el(x0, y0), el(x0 + 1, y0), tx), lerp(el(x0, y0 + 1), el(x0 + 1, y0 + 1), tx), ty);
-      E[py * PW + px] = e + (vnoise(px / 12, py / 12, s + 5) - 0.5) * 0.028 + (vnoise(px / 5, py / 5, s + 6) - 0.5) * 0.008;
+      const a = el(x0, y0), b = el(x0 + 1, y0), c = el(x0, y0 + 1), d = el(x0 + 1, y0 + 1), ab = a + (b - a) * tx;
+      E[py * PW + px] = ab + (c + (d - c) * tx - ab) * ty + (n12(px, py) - 0.5) * 0.028 + (n5(px, py) - 0.5) * 0.008;
     }
   }
-  const sea = G.sea;
+  const sea = G.sea, AW = ATLAS.width, RWAT = ATLAS_R.g_water, GR = {};
+  for (const k in GTEX) GR[k] = GTEX[k].map(n => ATLAS_R['g_' + n]);
   for (let py = 0; py < PH; py++) for (let px = 0; px < PW; px++) {
     const pi = py * PW + px, e = E[pi], o = pi * 4;
-    let c;
+    let r, g, b;
     if (e < sea) {
-      const dep = sea - e, w = texPx('g_water', px, py);
-      if (dep < 0.004) c = mix(w, [210, 240, 248], 0.65);
-      else if (dep < 0.012) c = mix(w, [90, 180, 220], 0.45);
-      else if (dep < 0.04) c = mix(w, [70, 150, 210], 0.2);
-      else if (dep < 0.09) c = w;
-      else c = [w[0] * 0.72, w[1] * 0.75, w[2] * 0.82];
+      let u = px & 127, v = py & 127; if (u >= 64) u = 127 - u; if (v >= 64) v = 127 - v;
+      const ao = ((RWAT[1] + v) * AW + RWAT[0] + u) * 4, dep = sea - e; r = ATL[ao]; g = ATL[ao + 1]; b = ATL[ao + 2];
+      if (dep < 0.004) { r += (210 - r) * 0.65; g += (240 - g) * 0.65; b += (248 - b) * 0.65; }
+      else if (dep < 0.012) { r += (90 - r) * 0.45; g += (180 - g) * 0.45; b += (220 - b) * 0.45; }
+      else if (dep < 0.04) { r += (70 - r) * 0.2; g += (150 - g) * 0.2; b += (210 - b) * 0.2; }
+      else if (dep >= 0.09) { r *= 0.72; g *= 0.75; b *= 0.82; }
     } else {
-      const fx = px / WT + (vnoise(px / 22, py / 22, s + 300) - 0.5) * 0.75, fy = py / WT + (vnoise(px / 22, py / 22, s + 400) - 0.5) * 0.75;
+      const fx = px / WT + (n22a(px, py) - 0.5) * 0.75, fy = py / WT + (n22b(px, py) - 0.5) * 0.75;
       let k = G.tiles[clamp(Math.floor(fy), 0, H - 1) * W + clamp(Math.floor(fx), 0, W - 1)];
       if (k <= 1) k = G.tiles[clamp((py / WT) | 0, 0, H - 1) * W + clamp((px / WT) | 0, 0, W - 1)];
       if (k <= 1) k = T.SAND;
       if (e - sea < 0.006 && k !== T.SNOW) k = T.SAND;
-      const tx2 = GTEX[k], alt = vnoise(px / 45, py / 45, s + 77 + k) > 0.62;
-      c = texPx('g_' + (alt ? tx2[1] : tx2[0]), px + k * 17, py + k * 29);
+      const nk = n45[k] || (n45[k] = noiseField(45, s + 77 + k, PW, PH)), rr = GR[k][nk(px, py) > 0.62 ? 1 : 0];
+      let u = (px + k * 17) & 127, v = (py + k * 29) & 127; if (u >= 64) u = 127 - u; if (v >= 64) v = 127 - v;
+      const ao = ((rr[1] + v) * AW + rr[0] + u) * 4;
       const ex = E[Math.max(0, py - 2) * PW + Math.max(0, px - 2)] - E[Math.min(PH - 1, py + 2) * PW + Math.min(PW - 1, px + 2)];
-      const sh = 1 + clamp(ex * 40, -0.18, 0.18) + (vnoise(px / 30, py / 30, s + 9) - 0.5) * 0.1;
-      c = [c[0] * sh, c[1] * sh, c[2] * sh];
+      const sh = 1 + clamp(ex * 40, -0.18, 0.18) + (n30(px, py) - 0.5) * 0.1;
+      r = ATL[ao] * sh; g = ATL[ao + 1] * sh; b = ATL[ao + 2] * sh;
     }
-    d[o] = clamp(c[0], 0, 255); d[o + 1] = clamp(c[1], 0, 255); d[o + 2] = clamp(c[2], 0, 255); d[o + 3] = 255;
+    d[o] = r; d[o + 1] = g; d[o + 2] = b; d[o + 3] = 255; // Uint8ClampedArray clamps and rounds
   }
   cx.putImageData(img, 0, 0);
   // rivers
@@ -1117,7 +1186,7 @@ const hasTech = (f, id) => !!(G.factions[f] && G.factions[f].techs.includes(id))
 const maxSquads = g => Math.min(5, clamp(1 + Math.floor(g.ldr / 12), 1, 6) + (hasTech(g.faction, 'drill') ? 1 : 0));
 const cmdBonus = g => 1 + Math.floor(g.cmd / 10) + (hasTech(g.faction, 'tactics') ? 1 : 0);
 const cmdRange = g => 2 + (g.cmd >= 28 ? 1 : 0) + (hasTech(g.faction, 'tactics') ? 1 : 0);
-const worldMove = g => CLASSES[g.cls].wmov + (hasTech(g.faction, 'logistics') ? 1 : 0);
+const worldMove = g => Math.max(2, CLASSES[g.cls].wmov + (hasTech(g.faction, 'logistics') ? 1 : 0) - (crisisOn('winter') ? 2 : 0));
 const xpNeed = l => 40 + l * 30;
 function troopAtk(f, type) { let a = TROOPS[type].atk; if (hasTech(f, 'forge')) a += 2; if (hasTech(f, 'steel')) a += 3; if (type === 'archer' && hasTech(f, 'longbow')) a += 3; if (type === 'cavalry' && hasTech(f, 'lances')) a += 3; return a; }
 function troopDef(f, type) { let d = TROOPS[type].def; if (hasTech(f, 'shields')) d += 2; if (hasTech(f, 'plate')) d += 3; if (type === 'spear' && hasTech(f, 'pikes')) d += 3; return d; }
@@ -1891,12 +1960,16 @@ const armyAt = (x, y) => G.gens.find(g => g.status === 'field' && g.x === x && g
 const fCities = f => G.cities.filter(c => c.owner === f);
 const capitalOf = f => G.cities.find(c => c.owner === f && c.capital) || fCities(f)[0];
 
-function newGame(world, kname) {
-  G = world; G.turn = 1; G.log = [];
-  G.factions = FACTION_DEF.map((f, i) => ({ id: i, name: i === 0 ? kname : f.name, col: f.col, lord: f.lord, gold: i === NEUTRAL ? 0 : 320, kxp: 0, klv: 1, tp: 1, techs: [], alive: true, scout: [] }));
+const START_GOLD = { poor: 150, std: 320, rich: 700 };
+// o: { kingdoms (2-4, player included), gold ('poor' | 'std' | 'rich'), crisis (bool) }; unused kingdom slots sit out the game
+function newGame(world, kname, o = {}) {
+  const K = clamp(o.kingdoms || 4, 2, 4), gold = START_GOLD[o.gold] || START_GOLD.std;
+  G = world; G.turn = 1; G.log = []; G.opts = Object.assign({}, o, { kingdoms: K });
+  G.factions = FACTION_DEF.map((f, i) => ({ id: i, name: i === 0 ? kname : f.name, col: f.col, lord: f.lord, gold: i === NEUTRAL ? 0 : gold, kxp: 0, klv: 1, tp: 1, techs: [], alive: i === NEUTRAL || i < K, out: i !== NEUTRAL && i >= K, scout: [] }));
   G.pals = G.factions.map(f => factionPal(f.col));
+  G.crisis = o.crisis ? { next: 12 + ri(0, 4), cur: null } : null;
   G.gens = []; GID = 1;
-  for (let f = 0; f < 4; f++) {
+  for (let f = 0; f < K; f++) {
     const c = capitalOf(f);
     const g = makeGeneral(f, 3, f === 0 ? 'Fighter' : pick(['Fighter', 'Lancer', 'Knight'])); g.squads = [{ type: 'infantry', hp: 10 }, { type: 'spear', hp: 10 }];
     placeGen(g, c.x, c.y); G.gens.push(g); g.mp = worldMove(g);
@@ -1919,6 +1992,34 @@ function renderLog() { $('#log').innerHTML = G.log.slice(-4).map(s => `<div>${s}
 function toast(msg, ms = 2600) { const d = document.createElement('div'); d.className = 'toast'; d.innerHTML = msg; $('#toasts').appendChild(d); setTimeout(() => d.remove(), ms); }
 
 // ============ ECONOMY ============
+// ============ MAP-WIDE CRISES (optional): every 9-13 turns from turn ~12 a calamity strikes every kingdom alike
+const CRISES = {
+  plague: { n: 'Plague', ico: 'skull', turns: 3, d: 'Sickness spreads through the camps: every army squad loses 1 HP each turn.' },
+  famine: { n: 'Famine', ico: 'alert', turns: 4, d: 'The harvest has failed: all kingdoms earn half their gold.' },
+  winter: { n: 'Bitter Winter', ico: 'snow', turns: 3, d: 'Snow buries the roads: every army moves 2 fewer tiles.' },
+  revolt: { n: 'Peasant Revolt', ico: 'flag', turns: 1, d: 'Unrest boils over: each kingdom with 3+ cities loses its least guarded town to the Free Towns.' },
+  raiders: { n: 'Raiders', ico: 'coins', turns: 1, d: 'Bandits strike the treasuries: every kingdom loses a quarter of its gold.' },
+};
+const crisisOn = k => !!(G && G.crisis && G.crisis.cur && G.crisis.cur.k === k);
+function crisisTick() {
+  const C = G.crisis; if (!C) return;
+  if (C.cur) {
+    if (C.cur.k === 'plague') for (const g of G.gens) if (g.status === 'field') for (const s of g.squads) s.hp = Math.max(1, s.hp - 1);
+    if (--C.cur.left <= 0) { logMsg(`The ${CRISES[C.cur.k].n} has passed.`); if (C.cur.k !== 'revolt' && C.cur.k !== 'raiders') toast(`<i class="ico ico-check"></i> The ${CRISES[C.cur.k].n} has passed.`); C.cur = null; }
+    return;
+  }
+  if (G.turn < C.next) return;
+  const k = pick(Object.keys(CRISES)), X = CRISES[k]; C.cur = { k, left: X.turns }; C.next = G.turn + 9 + ri(0, 4);
+  if (k === 'raiders') for (const F of G.factions) if (F.alive && F.id !== NEUTRAL) F.gold = Math.floor(F.gold * 0.75);
+  if (k === 'revolt') for (const F of G.factions) {
+    if (!F.alive || F.id === NEUTRAL) continue; const cs = fCities(F.id); if (cs.length < 3) continue;
+    const guard = c => G.gens.filter(g => g.status === 'field' && g.faction === F.id && man(g.x, g.y, c.x, c.y) <= 1).length;
+    const c = cs.filter(c => !c.capital && guard(c) === 0).sort((a, b) => a.level - b.level)[0]; if (!c) continue;
+    c.owner = NEUTRAL; c.garrison = 1; logMsg(`${c.name} rose up against ${F.name}.`);
+  }
+  if (k === 'revolt') computeTerritory();
+  logMsg(`Crisis: ${X.n}! ${X.d}`); toast(`<i class="ico ico-${X.ico}"></i> <b>${X.n}!</b> ${X.d}`, 7000);
+}
 function incomeReport(f) {
   const per = new Map(); for (const c of G.cities) if (c.owner === f) per.set(c.id, 4 + c.level * 4);
   let tilesOwned = 0;
@@ -1931,7 +2032,7 @@ function incomeReport(f) {
   let gross = 0; const rows = [];
   for (const [cid, v] of per) { const c = G.cities[cid]; const val = Math.round(v * (c.market ? 1.25 : 1)); gross += val; rows.push({ c, val }); }
   const mult = 1 + (hasTech(f, 'agri') ? .15 : 0) + (hasTech(f, 'trade') ? .2 : 0) + (hasTech(f, 'banking') ? .25 : 0);
-  gross = Math.round(gross * mult);
+  gross = Math.round(gross * mult * (crisisOn('famine') ? 0.5 : 1));
   const up = fGens(f).reduce((a, g) => a + upkeep(g), 0);
   return { rows, gross, mult, up, net: gross - up, tilesOwned };
 }
@@ -2208,6 +2309,7 @@ async function endTurn() {
   for (const c of G.cities) c.garrison = Math.min(1, c.garrison + 0.12 + (c.barracks ? 0.08 : 0));
   for (const g of G.gens) if (g.status === 'wounded') { g.wound--; if (g.wound <= 0) { const cap = capitalOf(g.faction); if (cap && placeGen(g, cap.x, cap.y)) { if (g.faction === 0) toast(`${g.name} has recovered and returns to ${cap.name}.`); } else g.wound = 1; } }
   G.turn++;
+  crisisTick();
   for (const g of G.gens) if (g.status === 'field') g.mp = worldMove(g);
   computeTerritory();
   UI.busy = false; $('#bEnd').disabled = false;
@@ -2365,7 +2467,7 @@ function renderHUD() {
   <span class="chip"><i class="ico ico-crown"></i> Lv <b>${F.klv}</b> <span class="xpbar"><i style="width:${pct}%"></i></span></span>
   <span class="chip"><i class="ico ico-coins"></i> <b>${F.gold}</b> <span style="color:${rep.net >= 0 ? 'var(--green)' : 'var(--red)'}">${rep.net >= 0 ? '+' : ''}${rep.net}</span></span>
   <span class="chip"><i class="ico ico-helmet"></i> <b>${fGens(0).length}</b>/${genCap(0)}</span><span class="chip"><i class="ico ico-castle"></i> <b>${fCities(0).length}</b></span>
-  <span class="chip" style="${F.tp ? 'box-shadow:0 0 0 2px #fff,0 0 0 4px var(--green)' : ''}"><i class="ico ico-scroll"></i> <b>${F.tp}</b> TP</span><span class="chip">Turn <b>${G.turn}</b></span>`;
+  <span class="chip" style="${F.tp ? 'box-shadow:0 0 0 2px #fff,0 0 0 4px var(--green)' : ''}"><i class="ico ico-scroll"></i> <b>${F.tp}</b> TP</span><span class="chip">Turn <b>${G.turn}</b></span>${G.crisis && G.crisis.cur ? `<span class="chip" title="${CRISES[G.crisis.cur.k].d}"><i class="ico ico-${CRISES[G.crisis.cur.k].ico}"></i> <b style="color:var(--red)">${CRISES[G.crisis.cur.k].n}</b> ${G.crisis.cur.left} turns</span>` : ''}`;
 }
 const UNIT_ICO = { infantry: 'swords', spear: 'spear', archer: 'bow', cavalry: 'helmet', armored: 'shield', blade: 'clash', priest: 'heart' };
 const TILE_ICO = ['river', 'river', 'desert', 'grass', 'grass', 'trees', 'rocks', 'mountain', 'snow', 'desert', 'river'];
@@ -2445,13 +2547,14 @@ function kingdomModal() {
   <div class="sub">Kingdom XP comes from battles (+30 win), captured cities (+80) and held territory each turn. Each level raises the general cap by 1 and grants a Tech Point.</div>
   <h4>Treasury</h4><table><tr><th>City</th><th>Lv</th><th>Gold</th></tr>${rep.rows.map(r => `<tr><td>${r.c.capital ? '♛ ' : ''}${r.c.name}</td><td>${r.c.level}</td><td>${r.val}</td></tr>`).join('')}
   <tr><td>Tech bonus</td><td></td><td>×${rep.mult.toFixed(2)}</td></tr><tr><td>Army upkeep</td><td></td><td style="color:var(--red)">-${rep.up}</td></tr><tr><th>Net per turn</th><th></th><th>${rep.net >= 0 ? '+' : ''}${rep.net}</th></tr></table>
-  <h4>Realm standings</h4><table><tr><th>Kingdom</th><th>Lv</th><th>Cities</th><th>Generals</th><th>Status</th></tr>${G.factions.slice(0, 4).map(f => `<tr><td><span class="sw" style="background:${f.col}"></span>${f.name}</td><td>${f.klv}</td><td>${fCities(f.id).length}</td><td>${fGens(f.id).length}</td><td>${f.alive ? '' : '<i class="ico ico-skull"></i> Fallen'}</td></tr>`).join('')}
+  <h4>Realm standings</h4><table><tr><th>Kingdom</th><th>Lv</th><th>Cities</th><th>Generals</th><th>Status</th></tr>${G.factions.slice(0, 4).filter(f => !f.out).map(f => `<tr><td><span class="sw" style="background:${f.col}"></span>${f.name}</td><td>${f.klv}</td><td>${fCities(f.id).length}</td><td>${fGens(f.id).length}</td><td>${f.alive ? '' : '<i class="ico ico-skull"></i> Fallen'}</td></tr>`).join('')}
   <tr><td><span class="sw" style="background:${G.factions[4].col}"></span>Free Towns</td><td>—</td><td>${fCities(4).length}</td><td>—</td><td></td></tr></table>
   <h4>Chronicle</h4><div class="sub" style="max-height:120px;overflow:auto">${G.log.slice().reverse().map(s => `<div>${s}</div>`).join('') || 'Nothing yet.'}</div>
-  <h4>Game</h4><div class="row"><button class="btn sm" id="kSave"><i class="ico ico-book"></i> Save</button><button class="btn sm" id="kScn"><i class="ico ico-gear"></i> Battle scenes: ${SET.scenes ? 'On' : 'Off'}</button><button class="btn sm red" id="kQuit">Abandon & new game</button></div>`;
+  <h4>Game</h4><div class="row"><button class="btn sm" id="kSave"><i class="ico ico-book"></i> Save</button><button class="btn sm" id="kScn"><i class="ico ico-gear"></i> Battle scenes: ${SET.scenes ? 'On' : 'Off'}</button><button class="btn sm" id="kMenu"><i class="ico ico-left"></i> Save & main menu</button><button class="btn sm red" id="kQuit">Abandon & new game</button></div>`;
   openModal(h);
   $('#kSave').onclick = () => { saveGame(); toast('Game saved.'); };
   $('#kScn').onclick = () => { SET.scenes = !SET.scenes; saveSet(); kingdomModal(); };
+  $('#kMenu').onclick = () => { saveGame(); location.reload(); };
   $('#kQuit').onclick = () => { $('#kQuit').textContent = 'Click again to confirm'; $('#kQuit').onclick = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) { } location.reload(); }; };
 }
 function generalsModal() {
@@ -2512,16 +2615,71 @@ $('#bTech').onclick = () => !UI.busy && techModal();
 $('#bNext').onclick = () => !UI.busy && nextArmy();
 $('#bEnd').onclick = () => endTurn();
 
-// ============ TITLE / BOOT ============
-let previewSeed = 0;
-function rollPreview() {
-  previewSeed = Math.floor(Math.random() * 1e6);
-  RNG = Math.random;
-  const w = genWorld(previewSeed);
-  newGame(w, $('#kname').value || 'Kingdom of Aster');
-  const cap = capitalOf(0); cam.z = (innerWidth < 760 || innerHeight <= 520) ? 1 : 1.5; centerOn(cap.x, cap.y);
-  $('#tSeed').textContent = `Map #${previewSeed} · ${G.cities.length} cities · 4 kingdoms`;
+// ============ MAIN MENU / NEW GAME ============
+// The menu needs no world, so it appears at once; a world is generated (cheaply, no terrain art) only for the
+// minimap preview, and the full terrain is painted when the game actually starts.
+const NG = { size: 'm', shape: 'continent', enemies: '3', towns: '2', gold: 'std', crisis: '0', seed: 0 };
+try { Object.assign(NG, JSON.parse(localStorage.getItem('cc_newgame') || '{}')); } catch (e) { }
+let previewWorld = null, previewKey = '';
+const ngOpts = () => ({ size: NG.size, shape: NG.shape, kingdoms: 1 + +NG.enemies, towns: +NG.towns, gold: NG.gold, crisis: NG.crisis === '1' });
+const TERR_COL = ['#1c3e6e', '#2f67a8', '#e2cf8e', '#6fb14a', '#9cc35a', '#3f7d36', '#8a7a52', '#7c7670', '#e8eef4', '#dcc076', '#5e7a4a'];
+function titleScreen(which) {
+  for (const [id, k] of [['#tMenu', 'menu'], ['#tSetup', 'setup'], ['#tPanel', 'panel']]) $(id).style.display = which === k ? '' : 'none';
+  $('#title .tag').style.display = which === 'setup' ? 'none' : ''; $('#title').classList.toggle('setup', which === 'setup');
 }
+function syncSetup() {
+  for (const seg of document.querySelectorAll('#tSetup .seg')) for (const b of seg.children) b.classList.toggle('on', NG[seg.dataset.opt] === b.dataset.v);
+  $('#tCrisisInfo').textContent = NG.crisis === '1' ? 'Plagues, famines, harsh winters, revolts and raids strike every kingdom alike every 9-13 turns.' : '';
+}
+function drawPreview() {
+  const o = ngOpts(), key = JSON.stringify([NG.seed, o.size, o.shape, o.kingdoms, o.towns]);
+  if (key !== previewKey) { RNG = mulberry32(NG.seed); previewWorld = genWorld(NG.seed, o); previewKey = key; RNG = Math.random; }
+  const w = previewWorld, cv = $('#tMini'), sc = 3; cv.width = w.W * sc; cv.height = w.H * sc; const cx = cv.getContext('2d');
+  for (let i = 0; i < w.N; i++) { cx.fillStyle = w.river[i] && w.tiles[i] > 1 ? '#4c9cd4' : TERR_COL[w.tiles[i]]; cx.fillRect((i % w.W) * sc, ((i / w.W) | 0) * sc, sc, sc); }
+  for (const c of w.cities) {
+    const col = c.owner === NEUTRAL ? '#efe6cc' : FACTION_DEF[c.owner].col, r = c.capital ? 4 : 2, x = c.x * sc + 1, y = c.y * sc + 1;
+    cx.fillStyle = '#0c0e16'; cx.fillRect(x - r - 1, y - r - 1, r * 2 + 3, r * 2 + 3); cx.fillStyle = col; cx.fillRect(x - r, y - r, r * 2 + 1, r * 2 + 1);
+  }
+  $('#tSeed').textContent = `Map #${NG.seed} · ${w.W}×${w.H} · ${w.cities.length} towns · ${o.kingdoms} kingdoms`;
+}
+function openSetup() { if (!NG.seed) NG.seed = Math.floor(Math.random() * 1e6); titleScreen('setup'); syncSetup(); drawPreview(); }
+for (const seg of document.querySelectorAll('#tSetup .seg')) seg.onclick = e => {
+  const b = e.target.closest('.btn'); if (!b) return; NG[seg.dataset.opt] = b.dataset.v; syncSetup(); drawPreview();
+  try { localStorage.setItem('cc_newgame', JSON.stringify(Object.assign({}, NG, { seed: 0 }))); } catch (e) { }
+};
+$('#tNew').onclick = openSetup;
+$('#tBack').onclick = () => titleScreen('menu');
+$('#tReroll').onclick = () => { NG.seed = Math.floor(Math.random() * 1e6); drawPreview(); };
+function busyThen(fn) { $('#tLoad').style.display = 'flex'; requestAnimationFrame(() => setTimeout(() => { try { fn(); } finally { $('#tLoad').style.display = 'none'; } }, 30)); }
+$('#tStart').onclick = () => busyThen(() => {
+  const o = ngOpts(); drawPreview(); RNG = Math.random;
+  newGame(previewWorld, ($('#kname').value || 'Kingdom of Aster').slice(0, 24), o); previewWorld = null; previewKey = '';
+  cam.z = (innerWidth < 760 || innerHeight <= 520) ? 1 : 1.5;
+  logMsg('The conquest begins.'); saveGame(); startUI();
+  toast('Select your General, move across the map, and attack red-highlighted foes. Capture Free Towns to grow!', 6000);
+});
+$('#tCont').onclick = () => busyThen(() => { RNG = Math.random; if (loadGame()) { cam.z = (innerWidth < 760 || innerHeight <= 520) ? 1 : 1.5; startUI(); } else toast('Save could not be loaded.'); });
+function optionsPanel() {
+  $('#tPanel').innerHTML = `<h3><i class="ico ico-gear"></i> Options</h3>
+   <div class="trow"><span>Battle scenes</span><div class="seg" id="oScn"><button class="btn sm ${SET.scenes ? 'on' : ''}" data-v="1">On</button><button class="btn sm ${SET.scenes ? '' : 'on'}" data-v="0">Off</button></div></div>
+   <div class="trow" style="margin-top:7px"><span>Battle speed</span><div class="seg" id="oSpd">${[1, 2, 3].map(v => `<button class="btn sm ${SET.speed === v ? 'on' : ''}" data-v="${v}">${v}×</button>`).join('')}</div></div>
+   <div class="row tbtns"><button class="btn" id="pBack"><i class="ico ico-left"></i> Back</button></div>`;
+  $('#oScn').onclick = e => { const b = e.target.closest('.btn'); if (!b) return; SET.scenes = b.dataset.v === '1'; saveSet(); optionsPanel(); };
+  $('#oSpd').onclick = e => { const b = e.target.closest('.btn'); if (!b) return; SET.speed = +b.dataset.v; saveSet(); optionsPanel(); };
+  $('#pBack').onclick = () => titleScreen('menu'); titleScreen('panel');
+}
+function helpPanel() {
+  $('#tPanel').innerHTML = `<h3><i class="ico ico-scroll"></i> How to Play</h3>
+   <p><b>Goal:</b> conquer every rival kingdom. You lose if your last city falls.</p>
+   <p><b>Armies:</b> select a General, move them across the map and attack red-highlighted enemies or towns. Each General commands a few squads.</p>
+   <p><b>Battles:</b> pick a General ability, then watch the clash. If a General falls, their troops flee.</p>
+   <p><b>Matchups:</b> Infantry beat Spearmen, Spearmen beat Cavalry, Cavalry beat Infantry. Archers beat Priests.</p>
+   <p><b>Growth:</b> cities and territory earn gold for squads and upgrades. Kingdom levels grant Tech Points and raise your General cap; hire Generals at the Tavern.</p>
+   <div class="row tbtns"><button class="btn" id="pBack"><i class="ico ico-left"></i> Back</button></div>`;
+  $('#pBack').onclick = () => titleScreen('menu'); titleScreen('panel');
+}
+$('#tOpts').onclick = optionsPanel; $('#tHelp').onclick = helpPanel;
+Object.assign($('#title').style, { backgroundImage: `radial-gradient(#0f1a3d22 20%,#0f1a3dcc), url(${BATTLE_BG.src})`, backgroundSize: 'cover', backgroundPosition: 'center bottom' });
 function startUI() {
   $('#title').style.display = 'none';
   for (const id of ['#hud', '#toolbar']) $(id).style.display = 'flex';
@@ -2529,14 +2687,8 @@ function startUI() {
   renderHUD(); renderLog();
   const g = fieldGens(0)[0]; if (g) { centerOn(g.x, g.y); selectArmy(g); }
 }
-$('#tReroll').onclick = rollPreview;
-$('#tStart').onclick = () => {
-  G.factions[0].name = ($('#kname').value || 'Kingdom of Aster').slice(0, 24);
-  logMsg('The conquest begins.'); saveGame(); startUI();
-  toast('Select your General, move across the map, and attack red-highlighted foes. Capture Free Towns to grow!', 6000);
-};
-$('#tCont').onclick = () => { if (loadGame()) { cam.z = (innerWidth < 760 || innerHeight <= 520) ? 1 : 1.5; startUI(); } else toast('Save could not be loaded.'); };
 try { if (localStorage.getItem(SAVE_KEY)) $('#tCont').style.display = ''; } catch (e) { }
-atlasReady.then(rollPreview);
+// the map needs the texture atlas; keep the start buttons waiting until it has decoded
+$('#tStart').disabled = $('#tCont').disabled = true; atlasReady.then(() => { $('#tStart').disabled = $('#tCont').disabled = false; });
 </script>
 </body></html>
