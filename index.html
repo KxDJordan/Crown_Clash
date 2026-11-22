@@ -2542,6 +2542,21 @@ const BUILD = {
   temple: { n: 'Temple', c: 140, lv: 2, d: '+20 happiness' },
   foundry: { n: 'Foundry', c: 160, lv: 2, d: '+3 ore a turn' },
 };
+// construction takes a few turns: one project per town at a time, paid up front, refunded if cancelled
+const BUILD_TURNS = { market: 2, granary: 2, watchtower: 2, barracks: 3, temple: 3, foundry: 3 }, WALL_TURNS = [0, 2, 3, 4], UP_TURNS = 3;
+const projTurns = (c, k) => k === 'walls' ? WALL_TURNS[wallLvl(c) + 1] : k === 'level' ? UP_TURNS : BUILD_TURNS[k] || 2;
+const projName = (c, k) => k === 'walls' ? WALL_N[wallLvl(c) + 1] : k === 'level' ? `Level ${c.level + 1}` : BUILD[k].n;
+function startBuild(c, k, cost) {
+  const F = G.factions[c.owner]; if (c.build || F.gold < cost) return false;
+  F.gold -= cost; c.build = { k, left: projTurns(c, k), total: projTurns(c, k), cost }; return true;
+}
+function buildTick(c) {
+  if (!c.build || --c.build.left > 0) return;
+  const k = c.build.k, what = projName(c, k); c.build = null;
+  if (k === 'walls') c.walls = wallLvl(c) + 1; else if (k === 'level') { c.level++; computeTerritory(); } else c[k] = true;
+  cityCache.clear();
+  if (c.owner === 0) { sfx('capture'); toast(`<i class="ico ico-castle"></i> ${c.name}: <b>${what}</b> is complete!`, 3500); logMsg(`${c.name} finished building ${what}.`); }
+}
 const buildCost = (c, k) => Math.round(BUILD[k].c * (k === 'walls' && hasTech(c.owner, 'masonry') ? 0.75 : 1));
 function refillCost(g) { let c = 0; for (const s of g.squads) c += Math.max(0, sqMax(g) - s.hp) * TROOPS[s.type].refill; return Math.round(c * costMul(g.faction)); }
 const trainCost = (f, type) => Math.round(TROOPS[type].cost * costMul(f));
@@ -2711,7 +2726,7 @@ function applyBattle(res, S, attG, tgt) {
     const msg = `Bandits plundered ${c.name}, stealing ${loot} gold`; logMsg(msg); if (c.owner === 0) toast('<i class="ico ico-alert"></i> ' + msg, 4000);
   } else if (attWon && S.city) {
     const c = S.city, old = c.owner;
-    c.owner = attF; c.garrison = 0.3; c.happy = 30; c.conq = 8; const wasCap = c.capital; c.capital = false;
+    c.owner = attF; c.garrison = 0.3; c.happy = 30; c.conq = 8; c.build = null; const wasCap = c.capital; c.capital = false;
     for (const g of G.gens) if (g.status === 'field' && g.x === c.x && g.y === c.y && g.faction !== attF) { g.status = 'field'; placeGen(g, c.x, c.y); }
     if (attG.status === 'field' && !armyAt(c.x, c.y)) { attG.x = c.x; attG.y = c.y; attG.ax = c.x; attG.ay = c.y; }
     addKXP(attF, 80);
@@ -2779,11 +2794,11 @@ async function aiTurn(f) {
   }
   // economy
   for (const c of fCities(f)) {
-    if (F.gold > 420 && c.level < 5 && R() < 0.5) { const k = upCost(c); if (F.gold - k > 250) { F.gold -= k; c.level++; } }
+    if (!c.build && F.gold > 420 && c.level < 5 && R() < 0.5) { const k = upCost(c); if (F.gold - k > 250) startBuild(c, 'level', k); }
     // build what the kingdom needs first: food, then happiness, ore, then the rest
     const fr = foodReport(f), want = [fr.net < 3 && 'granary', (c.happy ?? 65) < 50 && 'temple', (F.ore || 0) < 30 && 'foundry', 'market', 'barracks', 'watchtower'].filter(Boolean);
-    if (canWall(c) && F.gold > wallCost(c) + 200 && (c.capital || c.level >= 2) && R() < 0.5) { F.gold -= wallCost(c); c.walls = wallLvl(c) + 1; }
-    for (const k of want) if (!c[k] && c.level >= BUILD[k].lv && F.gold > buildCost(c, k) + 150) { F.gold -= buildCost(c, k); c[k] = true; break; }
+    if (!c.build && canWall(c) && F.gold > wallCost(c) + 200 && (c.capital || c.level >= 2) && R() < 0.5) startBuild(c, 'walls', wallCost(c));
+    for (const k of want) if (!c.build && !c[k] && c.level >= BUILD[k].lv && F.gold > buildCost(c, k) + 150) { startBuild(c, k, buildCost(c, k)); break; }
   }
   // hire
   for (let guard = 0; guard < 3 && genCount(f) < genCap(f); guard++) {
@@ -2951,7 +2966,7 @@ async function endTurn() {
     if (F.gold < 0) { F.gold = 0; for (const g of fieldGens(f)) for (const s of g.squads) s.hp = Math.max(1, s.hp - 1); if (f === 0) toast('<i class="ico ico-alert"></i> Treasury empty! Unpaid troops are deserting.'); }
     addKXP(f, Math.floor(terrCount[f] / 7));
   }
-  for (const c of G.cities) { c.garrison = Math.min(1, c.garrison + 0.12 + (c.barracks ? 0.08 : 0)); c.pop = Math.min(popMax(c), (c.pop || 0) + popRegen(c)); }
+  for (const c of G.cities) { buildTick(c); c.garrison = Math.min(1, c.garrison + 0.12 + (c.barracks ? 0.08 : 0)); c.pop = Math.min(popMax(c), (c.pop || 0) + popRegen(c)); }
   for (const g of G.gens) if (g.status === 'wounded') { g.wound--; if (g.wound <= 0) { const cap = capitalOf(g.faction); if (cap && placeGen(g, cap.x, cap.y)) { if (g.faction === 0) toast(`${g.name} has recovered and returns to ${cap.name}.`); } else g.wound = 1; } }
   G.turn++;
   crisisTick();
@@ -3198,9 +3213,9 @@ function cityPanel(c) {
   let tiles = 0; for (let i = 0; i < G.N; i++) if (G.terr[i] === c.id) tiles++;
   let h = `<h3>${c.capital ? '♛ ' : ''}${c.name}</h3><div class="sub"><span class="sw" style="background:${F.col}"></span>${F.name} · Level ${c.level}/5 · ${tiles} tiles</div>
   <div class="stats"><div>Income<b>${row ? Math.round(row.val * rep.mult) : 0}</b></div><div>Garrison<b>${Math.round(c.garrison * 100)}%</b></div><div>People<b>${c.pop || 0}/${popMax(c)}</b></div><div title="Happiness">Mood<b style="color:${(c.happy ?? 65) < 35 ? 'var(--red)' : (c.happy ?? 65) > 75 ? 'var(--green)' : 'inherit'}">${c.owner < NEUTRAL ? (c.happy ?? 65) : '—'}</b></div></div>`;
-  h += `<h4>Buildings</h4><div class="sq"><span class="t">Walls</span><span class="sub" style="flex:1"><b>${WALL_N[wallLvl(c)]}</b> (Lv ${wallLvl(c)}/3): +${Math.round(siegeDef(c) * 100)}% DEF in sieges${wallArchers(c) ? `, ${wallArchers(c)} archers` : ''}${wallLvl(c) < 3 ? ` · next: ${WALL_N[wallLvl(c) + 1]} +${Math.round(WALL_DEF[wallLvl(c) + 1] * 100)}%, ${WALL_ARCHERS[wallLvl(c) + 1]} archers` : ''}</span>${wallLvl(c) >= 3 ? '<i class="ico ico-check"></i>' : !canWall(c) ? `<span class="sub">Town Lv ${WALL_LV[wallLvl(c) + 1]}</span>` : own ? `<button class="btn sm" id="pWall" ${wallCost(c) > F.gold ? 'disabled' : ''}>${wallCost(c)}g</button>` : '—'}</div>` + Object.keys(BUILD).map(k => `<div class="sq"><span class="t">${BUILD[k].n}</span><span class="sub" style="flex:1">${BUILD[k].d}</span>${c[k] ? '<i class="ico ico-check"></i>' : c.level < BUILD[k].lv ? `<span class="sub">Town Lv ${BUILD[k].lv}</span>` : own ? `<button class="btn sm" data-b="${k}" ${buildCost(c, k) > F.gold ? 'disabled' : ''}>${buildCost(c, k)}g</button>` : '—'}</div>`).join('');
+  h += `<h4>Buildings</h4>` + (c.build ? `<div class="tcur" style="margin:4px 0"><i class="ico ico-castle"></i><div><b>Building ${projName(c, c.build.k)}</b><div class="sub">${c.build.left} turn${c.build.left === 1 ? '' : 's'} left${own ? ' · one project at a time per town' : ''}</div><div class="tbar"><i style="width:${(1 - c.build.left / c.build.total) * 100}%"></i></div></div>${own ? `<button class="btn sm red" id="pCancelB">Cancel (+${c.build.cost}g)</button>` : ''}</div>` : '') + `<div class="sq"><span class="t">Walls</span><span class="sub" style="flex:1"><b>${WALL_N[wallLvl(c)]}</b> (Lv ${wallLvl(c)}/3): +${Math.round(siegeDef(c) * 100)}% DEF in sieges${wallArchers(c) ? `, ${wallArchers(c)} archers` : ''}${wallLvl(c) < 3 ? ` · next: ${WALL_N[wallLvl(c) + 1]} +${Math.round(WALL_DEF[wallLvl(c) + 1] * 100)}%, ${WALL_ARCHERS[wallLvl(c) + 1]} archers` : ''}</span>${wallLvl(c) >= 3 ? '<i class="ico ico-check"></i>' : !canWall(c) ? `<span class="sub">Town Lv ${WALL_LV[wallLvl(c) + 1]}</span>` : own ? `<button class="btn sm" id="pWall" ${wallCost(c) > F.gold ? 'disabled' : ''}>${wallCost(c)}g · ${WALL_TURNS[wallLvl(c) + 1]}t</button>` : '—'}</div>` + Object.keys(BUILD).map(k => `<div class="sq"><span class="t">${BUILD[k].n}</span><span class="sub" style="flex:1">${BUILD[k].d}</span>${c[k] ? '<i class="ico ico-check"></i>' : c.level < BUILD[k].lv ? `<span class="sub">Town Lv ${BUILD[k].lv}</span>` : own ? `<button class="btn sm" data-b="${k}" ${buildCost(c, k) > F.gold ? 'disabled' : ''}>${buildCost(c, k)}g · ${BUILD_TURNS[k]}t</button>` : '—'}</div>`).join('');
   if (own) h += `<div class="sub">Mood ${c.happy ?? 65} → ${happyTarget(c)}${c.conq > 0 ? ` · recently conquered (${c.conq} turns)` : ''}${c.happy < 35 ? ' · <b style="color:var(--red)">unhappy: income and growth suffer, may revolt below 20</b>' : c.happy > 75 ? ' · <b style="color:var(--green)">happy: +15% income, faster growth</b>' : ''}</div>`;
-  if (own && c.level < 5) h += `<div class="row"><button class="btn gold" id="pUp" ${upCost(c) > F.gold ? 'disabled' : ''}><i class="ico ico-up"></i> Upgrade to Lv ${c.level + 1} (${upCost(c)}g)</button></div><div class="sub">Higher levels grow territory, income and the castellan's garrison.</div>`;
+  if (own && c.level < 5) h += `<div class="row"><button class="btn gold" id="pUp" ${upCost(c) > F.gold ? 'disabled' : ''}><i class="ico ico-up"></i> Upgrade to Lv ${c.level + 1} (${upCost(c)}g · ${UP_TURNS} turns)</button></div><div class="sub">Higher levels grow territory, income and the castellan's garrison.</div>`;
   if (own) {
     h += `<h4>Recruit</h4><div class="sub">Into the kingdom reserve: <b>${reserveTotal(0)}/${reserveCap(0)}</b> soldiers · <b>${F.ore}</b> ore · <b>${c.pop}</b> people here (+${popRegen(c)}/turn)</div>` + Object.keys(TROOPS).map(t => {
       if (!troopUnlocked(0, t)) return `<div class="sq"><i class="ico ico-lock"></i><span class="t">${TROOPS[t].n}</span><span class="sub" style="flex:1">Needs ${TECH[TROOPS[t].req].n}</span></div>`;
@@ -3212,9 +3227,11 @@ function cityPanel(c) {
   if (!own) h += `<div class="sub" style="margin-top:6px">Defended by a ${'★'.repeat(castellanStars(c))} Lv ${clamp(Math.round(1.25 * 2 ** c.level), 2, 30)} castellan with ${castellanSquads(c)} squads at ${Math.round(c.garrison * 100)}% strength, behind ${WALL_N[wallLvl(c)].toLowerCase()}${wallArchers(c) ? ` with ${wallArchers(c)} archers` : ''}. Select an army and attack from an adjacent tile.</div>`;
   const a = armyAt(c.x, c.y); if (a) h += `<div class="row"><button class="btn sm" id="pArmy">View ${a.name}</button></div>`;
   P.innerHTML = h;
-  P.querySelectorAll('[data-b]').forEach(b => b.onclick = () => { const k = b.dataset.b, cst = buildCost(c, k); if (F.gold < cst || c.level < BUILD[k].lv) return; sfx('coin'); F.gold -= cst; c[k] = true; cityCache.clear(); afterWorldChange(); });
-  const pw = $('#pWall'); if (pw) pw.onclick = () => { const k = wallCost(c); if (F.gold < k || !canWall(c)) return; F.gold -= k; c.walls = wallLvl(c) + 1; sfx('capture'); toast(`${c.name} raises its ${WALL_N[c.walls]}!`); cityCache.clear(); afterWorldChange(); };
-  const up = $('#pUp'); if (up) up.onclick = () => { const cst = upCost(c); if (F.gold < cst) return; F.gold -= cst; c.level++; computeTerritory(); toast(`${c.name} grows to level ${c.level}!`); afterWorldChange(); };
+  P.querySelectorAll('[data-b]').forEach(b => b.onclick = () => { const k = b.dataset.b; if (c.level < BUILD[k].lv || !startBuild(c, k, buildCost(c, k))) return; sfx('coin'); toast(`Building ${BUILD[k].n} in ${c.name} (${c.build.left} turns).`); afterWorldChange(); });
+  const pw = $('#pWall'); if (pw) pw.onclick = () => { if (!canWall(c)) return; const name = WALL_N[wallLvl(c) + 1]; if (!startBuild(c, 'walls', wallCost(c))) return; sfx('coin'); toast(`Raising ${name} at ${c.name} (${c.build.left} turns).`); afterWorldChange(); };
+  const up = $('#pUp'); if (up) up.onclick = () => { if (!startBuild(c, 'level', upCost(c))) return; sfx('coin'); toast(`${c.name} begins growing to level ${c.level + 1} (${c.build.left} turns).`); afterWorldChange(); };
+  const pc = $('#pCancelB'); if (pc) pc.onclick = () => { F.gold += c.build.cost; c.build = null; afterWorldChange(); };
+  if (c.build) P.querySelectorAll('[data-b], #pWall, #pUp').forEach(b => { b.disabled = true; b.title = 'This town is already building something'; });
   const pa = $('#pArmy'); if (pa) pa.onclick = () => selectArmy(a);
   P.querySelectorAll('[data-rec]').forEach(b => b.onclick = () => { const [t, n] = b.dataset.rec.split(':'); if (recruit(0, c, t, +n)) { sfx('coin'); afterWorldChange(); } });
   const pb = $('#pBat'); if (pb) pb.onclick = () => { const g = raiseBattalion(0, c, 'infantry'); if (g) { sfx('horn'); toast(`${g.name} raises a battalion at ${c.name}.`); afterWorldChange(); } };
