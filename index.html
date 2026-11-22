@@ -160,22 +160,32 @@ th{color:var(--dim);font-weight:400;font-size:15px;letter-spacing:1px;text-trans
 .trow{display:flex;align-items:center;gap:10px}.trow>span{flex:none;width:96px;font-size:17px;color:var(--dim)}
 .trow input[type=text]{flex:1;width:auto;text-align:left;font-size:18px;padding:5px 8px 4px}
 .seg{display:flex;flex-wrap:wrap;gap:4px}#title .seg .btn{min-height:32px;font-size:16px;padding:3px 9px 2px}
-.tprev{flex:none;width:min(300px,34vw);text-align:center}.tprev canvas{width:100%;image-rendering:pixelated;border:4px solid #3a2413;background:#123;display:block}
+.tprev{flex:none;width:min(300px,34vw);text-align:center;align-self:stretch;display:flex;flex-direction:column;align-items:center}.tprev .tbtns{width:100%;margin-top:auto;padding-top:10px;flex-wrap:nowrap;gap:6px}.tprev .tbtns .btn{flex:1;white-space:nowrap}.tprev canvas{width:100%;image-rendering:pixelated;border:4px solid #3a2413;background:#123;display:block}
 .tprev .sub{margin:6px 0!important}#tCrisisInfo{margin:2px 0 0 106px!important;min-height:1.2em}
 .tbtns{justify-content:space-between;margin-top:12px}
 #tPanel{max-width:min(560px,92vw);text-align:left}#tPanel h3{margin:4px 0 8px;color:var(--accent)}#tPanel p{color:var(--text);font-size:17px;margin:6px 0}
 #tLoad{position:fixed;inset:0;z-index:46;display:none;align-items:center;justify-content:center;background:#0e1019aa}#tLoad .toast{font-size:22px;animation:none}
 #title{overflow-y:auto;align-items:flex-start}#title .tb{margin:auto}
 #title.setup h1,#title.setup .crest{display:none}
-@media (max-height:520px){#title .wp{display:none}}#title.setup .tb{margin-top:auto;padding-top:18px}
-@media (max-width:640px){.tsw{flex-direction:column}.tprev{width:100%;display:flex;gap:8px;align-items:center}.tprev canvas{width:46%}#tCrisisInfo{margin-left:0!important}}
+@media (max-height:520px){#title .wp{display:none}
+ #title .seg .btn{border-width:6px 8px 7px;border-image-width:6px 8px 7px;min-height:24px!important;font-size:13px!important;padding:0 2px!important}
+ .tform{gap:3px!important}.tbtns .btn,.tprev .btn{border-width:7px 10px 8px;border-image-width:7px 10px 8px;min-height:30px!important;font-size:16px!important}
+ #tCrisisInfo{display:none}.tprev canvas{border-width:3px}
+ .tmenu{gap:5px;margin:2px auto 8px}.tmenu .btn{min-height:34px!important;font-size:17px!important;border-width:8px 12px 9px;border-image-width:8px 12px 9px}
+ #title p.tag{margin:6px 0 8px!important}}#title.setup{padding-top:8px}#title.setup .tb{padding-top:18px}
+@media (max-width:640px){.tsw{flex-direction:column}.tprev{width:100%;display:flex;flex-direction:row;flex-wrap:wrap;justify-content:center;gap:8px;align-items:center}.tprev canvas{width:46%}#tCrisisInfo{margin-left:0!important}}
 @media (max-width:760px),(max-height:520px){.trow>span{width:76px;font-size:14px}.tform{gap:4px}#title .seg .btn{font-size:13px;min-height:26px;padding:2px 6px 1px}.trow input[type=text]{font-size:15px;padding:3px 6px 2px}#tCrisisInfo{margin-left:86px!important;font-size:13px!important}.tbtns{margin-top:6px}#title.setup .tb{padding:12px 12px 6px}}
 input[type=text]{font-family:var(--fb);font-size:20px;background:var(--inset);color:var(--text);border:2px solid var(--edge);border-radius:0;padding:7px 10px 6px;width:260px;text-align:center}
 /* notices */
 #toasts{position:fixed;top:62px;left:50%;transform:translateX(-50%);z-index:28;pointer-events:none;display:flex;flex-direction:column;gap:6px;align-items:center;width:max-content;max-width:92vw}
 .toast{background:var(--panel);border:2px solid #0c0e16;box-shadow:inset 0 0 0 2px var(--gold),0 4px 0 #0008;padding:9px 16px 8px;font-size:18px;animation:tin .25s ease-out;text-align:center}
 @keyframes tin{from{transform:translateY(-8px);opacity:0}to{transform:none;opacity:1}}
-@media (prefers-reduced-motion:reduce){.toast,#sban .sb{animation:none}}
+/* polish: screen fades, pop-in boxes, drifting menu sky */
+#fade{position:fixed;inset:0;z-index:60;background:#0c0e16;opacity:0;pointer-events:none;transition:opacity .28s ease}#fade.on{opacity:1}
+@keyframes popin{from{transform:scale(.94) translateY(8px);opacity:0}to{transform:none;opacity:1}}
+#title .tb{animation:popin .35s ease-out}#modal .box{animation:popin .22s ease-out}
+#title{animation:sky 60s ease-in-out infinite alternate}@keyframes sky{from{background-position:40% 100%,40% 100%}to{background-position:60% 100%,60% 100%}}
+@media (prefers-reduced-motion:reduce){.toast,#sban .sb,#title,#title .tb,#modal .box{animation:none}#fade{transition:none}}
 #log{position:fixed;left:10px;bottom:calc(var(--tbh,56px) + 6px);z-index:4;font-size:16px;color:var(--text);pointer-events:none;max-width:46vw;display:none}
 #log div{background:#12151fcc;padding:2px 8px 1px;margin-top:2px;width:max-content;max-width:100%}
 #zoom{position:fixed;left:10px;top:calc(var(--hudh,50px) + 8px);z-index:5;display:none;flex-direction:column;gap:4px}
@@ -231,7 +241,7 @@ td,th{border-color:var(--edge2)}
 .sw{border-color:#3a2413}
 /* title */
 #title{background:radial-gradient(#0f1a3d55 20%,#0f1a3de6)}
-#title .tb{position:relative;padding:34px 22px 10px;margin-top:30px}
+#title .tb{position:relative;padding:34px 22px 10px;margin:auto}#title{padding-top:46px}
 #title .crest{position:absolute;left:50%;top:-66px;width:178px;height:64px;transform:translateX(-50%);background:var(--i-crest) center/100% 100% no-repeat;pointer-events:none;clip-path:polygon(0 0,100% 0,100% 73.4%,64.5% 73.4%,62.5% 83%,58% 91%,52% 100%,48% 100%,42% 91%,37.5% 83%,35.5% 73.4%,0 73.4%)}
 #title h1{color:var(--accent);text-shadow:0 3px 0 var(--hi),0 6px 0 #0002}#title h1 .amp{color:var(--red);text-shadow:none}
 /* battle set-up */
@@ -297,7 +307,7 @@ td,th{border-color:var(--edge2)}
  h3{font-size:15px;margin-bottom:8px}table{font-size:16px}td,th{padding:4px 6px 3px}th{font-size:13px}
  .cards{grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}.card{padding:8px}
  .tech{grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px}.tc{padding:7px;font-size:14px;gap:3px}.tc b{font-size:17px}
- #title{padding:8px}#title .tb{padding:22px 16px 4px;margin-top:24px}#title .crest{top:-54px;width:140px;height:50px}#title h1{font-size:clamp(24px,5.4vw,34px)}#title p{margin:10px 0 10px;font-size:17px}#title p.sub{font-size:14px;margin-top:8px}#title .btn{min-height:42px;font-size:18px}
+ #title{padding:8px;padding-top:40px}#title .tb{padding:22px 16px 4px;margin:auto}#title .crest{top:-54px;width:140px;height:50px}#title h1{font-size:clamp(24px,5.4vw,34px)}#title p{margin:10px 0 10px;font-size:17px}#title p.sub{font-size:14px;margin-top:8px}#title .btn{min-height:42px;font-size:18px}
  input[type=text]{font-size:18px;padding:6px 10px 5px}
  #tachud{font-size:15px;padding:3px calc(8px + var(--sr)) 3px calc(8px + var(--sl));flex-wrap:nowrap;overflow:hidden;white-space:nowrap;gap:5px}#tachud .chip{min-height:22px;padding:1px 7px 0;flex:none}#tachud .sub{overflow:hidden;text-overflow:ellipsis}
  #tacbar{min-height:0;padding:5px calc(8px + var(--sr)) calc(5px + var(--sb)) calc(8px + var(--sl));font-size:14px;flex-wrap:nowrap}#tacinfo{min-width:0}#tacinfo .sub{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
@@ -358,13 +368,13 @@ td,th{border-color:var(--edge2)}
     <div class="trow"><span>Crises</span><div class="seg" data-opt="crisis"><button class="btn sm" data-v="0">Off</button><button class="btn sm" data-v="1">On</button></div></div>
     <p class="sub" id="tCrisisInfo"></p>
    </div>
-   <div class="tprev"><canvas id="tMini"></canvas><p class="sub" id="tSeed"></p><button class="btn sm" id="tReroll"><i class="ico ico-map"></i> New Map</button></div>
+   <div class="tprev"><canvas id="tMini"></canvas><p class="sub" id="tSeed"></p><button class="btn sm" id="tReroll"><i class="ico ico-map"></i> New Map</button>
+    <div class="row tbtns"><button class="btn" id="tBack"><i class="ico ico-left"></i> Back</button><button class="btn gold" id="tStart"><i class="ico ico-swords"></i> Begin Conquest</button></div></div>
   </div>
-  <div class="row tbtns"><button class="btn" id="tBack"><i class="ico ico-left"></i> Back</button><button class="btn gold" id="tStart"><i class="ico ico-swords"></i> Begin Conquest</button></div>
  </div>
  <div id="tPanel" style="display:none"></div>
 </div></div>
-<div id="tLoad"><div class="toast">Forging the realm…</div></div>
+<div id="fade"></div><div id="tLoad"><div class="toast">Forging the realm…</div></div>
 <div id="toasts"></div>
 <div id="rotate"><div class="ic">📱</div><h3>Rotate to landscape</h3><p class="sub">Crown &amp; Clash is built for landscape play.</p><button class="btn" onclick="document.body.classList.add('anyway')">Play anyway</button></div>
 <script>
@@ -1223,7 +1233,7 @@ function gainXP(g, xp) {
     g.xp -= xpNeed(g.lvl); g.lvl++; ups++; const gr = CLASSES[g.cls].g;
     g.atk += ri(1, gr[0]); g.def += ri(1, gr[1]); g.ldr += ri(1, gr[2] + 1); g.cmd += ri(0, gr[3]);
   }
-  if (ups && g.faction !== 0) autoLearn(g); else if (ups && skillPts(g) > 0 && typeof toast === 'function') toast(`<i class="ico ico-star"></i> ${g.name} reached Lv ${g.lvl} and can learn a new skill!`, 4000);
+  if (ups && g.faction !== 0) autoLearn(g); else if (ups && g.faction === 0) sfx('levelup'); if (ups && g.faction === 0 && skillPts(g) > 0 && typeof toast === 'function') toast(`<i class="ico ico-star"></i> ${g.name} reached Lv ${g.lvl} and can learn a new skill!`, 4000);
   const grow = sqMax(g) - m0; if (grow > 0) for (const s of g.squads) if (s.hp > 0) s.hp = Math.min(sqMax(g), s.hp + grow); // new recruits rally to a rising General
   return ups;
 }
@@ -1493,6 +1503,65 @@ let TB = null;
 let SET = { scenes: true, speed: 1 };
 const SKIP = { round: false };
 try { const sv = JSON.parse(localStorage.getItem('cc_settings') || 'null'); if (sv) SET = Object.assign(SET, sv); } catch (e) { }
+// ============ SOUND: every effect is synthesised with Web Audio (no audio files) ============
+// SET.vol: 0 off, 1 low, 2 high. Each sound has a short cooldown so busy battles don't turn into noise.
+if (SET.vol == null) SET.vol = 2;
+const SFX = { ctx: null, out: null, noise: null, last: {}, live: 0 };
+function audio() {
+  if (!SFX.ctx) {
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null;
+    const c = SFX.ctx = new AC(); SFX.out = c.createGain(); const comp = c.createDynamicsCompressor(); SFX.out.connect(comp); comp.connect(c.destination);
+    const nb = SFX.noise = c.createBuffer(1, c.sampleRate, c.sampleRate), d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  SFX.out.gain.value = [0, 0.3, 0.6][SET.vol] ?? 0.6; return SFX.ctx;
+}
+// browsers only allow audio after a user gesture; iOS needs the context resumed inside one
+for (const ev of ['pointerdown', 'keydown']) addEventListener(ev, () => { if (!SET.vol) return; const c = audio(); if (c && c.state !== 'running') c.resume(); }, { capture: true });
+function env(g, t, v, a, dur) { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); }
+function tone(type, f0, f1, dur, v, dl = 0) {
+  const c = SFX.ctx, t = c.currentTime + dl, o = c.createOscillator(), g = c.createGain(); o.type = type;
+  o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur); env(g, t, v, 0.005, dur);
+  o.connect(g); g.connect(SFX.out); o.start(t); o.stop(t + dur + 0.02);
+}
+function hiss(dur, v, ft, f0, f1, dl = 0, q = 0.8) {
+  const c = SFX.ctx, t = c.currentTime + dl, s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain(); s.buffer = SFX.noise;
+  f.type = ft; f.Q.value = q; f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(Math.max(30, f1), t + dur); env(g, t, v, 0.004, dur);
+  s.connect(f); f.connect(g); g.connect(SFX.out); s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.02);
+}
+const notes = (type, fs, step, dur, v) => fs.forEach((f, i) => tone(type, f, f, dur, v, i * step));
+const SOUNDS = {
+  click: [0.04, () => { tone('square', 880, 620, 0.05, 0.05); }],
+  hit: [0.05, () => { hiss(0.09, 0.35, 'lowpass', 2400, 300); tone('triangle', 170, 70, 0.1, 0.25); }],
+  heavy: [0.06, () => { hiss(0.2, 0.55, 'lowpass', 1800, 120); tone('sine', 120, 40, 0.28, 0.55); }],
+  clang: [0.06, () => { tone('square', 1900 + Math.random() * 300, 1750, 0.12, 0.05); tone('triangle', 2900, 2700, 0.22, 0.05); hiss(0.04, 0.18, 'highpass', 3500, 3500); }],
+  whoosh: [0.08, () => { hiss(0.2, 0.22, 'bandpass', 500, 2600, 0, 2); }],
+  bow: [0.07, () => { tone('triangle', 520, 200, 0.07, 0.1); hiss(0.14, 0.07, 'bandpass', 3200, 1200, 0.02, 3); }],
+  cast: [0.1, () => { tone('sine', 420, 1300, 0.28, 0.08); tone('triangle', 1300, 2100, 0.2, 0.04, 0.12); }],
+  boom: [0.08, () => { hiss(0.7, 0.6, 'lowpass', 1000, 50); tone('sine', 90, 28, 0.6, 0.6); }],
+  zap: [0.08, () => { hiss(0.3, 0.45, 'highpass', 5000, 700); tone('sawtooth', 1400, 140, 0.22, 0.1); }],
+  heal: [0.15, () => { notes('sine', [880, 1175, 1568], 0.07, 0.3, 0.07); }],
+  death: [0.06, () => { hiss(0.16, 0.18, 'lowpass', 700, 120); tone('triangle', 200, 90, 0.14, 0.08); }],
+  ko: [0.3, () => { hiss(0.5, 0.7, 'lowpass', 2500, 60); tone('sine', 140, 30, 0.7, 0.7); tone('sawtooth', 330, 55, 0.6, 0.1, 0.05); }],
+  skill: [0.2, () => { notes('triangle', [523, 659, 784, 1047], 0.06, 0.22, 0.07); }],
+  horn: [0.5, () => { tone('sawtooth', 196, 200, 0.45, 0.07); tone('sawtooth', 262, 265, 0.6, 0.07, 0.35); hiss(0.3, 0.05, 'bandpass', 600, 600, 0, 1); }],
+  victory: [1, () => { notes('square', [523, 659, 784], 0.12, 0.18, 0.06); tone('square', 1047, 1047, 0.6, 0.07, 0.38); tone('triangle', 523, 523, 0.7, 0.08, 0.38); }],
+  defeat: [1, () => { notes('triangle', [392, 349, 311], 0.22, 0.3, 0.09); tone('triangle', 262, 262, 0.9, 0.09, 0.66); }],
+  step: [0.09, () => { hiss(0.06, 0.07, 'lowpass', 500, 180); }],
+  coin: [0.08, () => { tone('square', 1320, 1320, 0.06, 0.05); tone('square', 1760, 1760, 0.16, 0.05, 0.06); }],
+  levelup: [0.4, () => { notes('square', [659, 784, 988, 1319], 0.07, 0.16, 0.05); }],
+  learn: [0.3, () => { notes('sine', [988, 1319, 1976], 0.06, 0.3, 0.07); }],
+  drum: [0.3, () => { tone('sine', 130, 48, 0.3, 0.45); hiss(0.12, 0.12, 'lowpass', 900, 200); tone('sine', 110, 45, 0.25, 0.3, 0.16); }],
+  gong: [1, () => { tone('sine', 196, 188, 2, 0.22); tone('sine', 294, 284, 1.6, 0.1); tone('sine', 415, 400, 1.2, 0.05); }],
+  capture: [0.5, () => { notes('square', [392, 523, 659, 784], 0.09, 0.18, 0.05); }],
+  page: [0.08, () => { hiss(0.12, 0.08, 'bandpass', 1800, 900, 0, 1.5); }],
+};
+function sfx(name, vol = 1) {
+  if (!SET.vol || !SOUNDS[name]) return; const c = audio(); if (!c || c.state !== 'running') return;
+  const now = c.currentTime, [cd, play] = SOUNDS[name]; if (SFX.last[name] && now - SFX.last[name] < cd) return; SFX.last[name] = now;
+  try { play(vol); } catch (e) { }
+}
+// every button press clicks
+addEventListener('click', e => { if (e.target.closest && e.target.closest('.btn, .snode.can')) sfx('click'); }, true);
 const saveSet = () => { try { localStorage.setItem('cc_settings', JSON.stringify(SET)); } catch (e) { } };
 function unitIcon(type, gen, pal, fc, g) {
   const k = unitSheet(type, gen), U = UNITS[k], [cv, cx] = mkCanvas(36, 30);
@@ -1505,12 +1574,13 @@ function unitIcon(type, gen, pal, fc, g) {
 }
 function sqIcon(type, pal, fc) { const [cv, cx] = mkCanvas(12, 14); miniFig(cx, 5, 13, type, pal, fc, 0); return cv; }
 function runManualBattle(b) {
+  sfx('horn');
   return new Promise(res => {
     TB = { b, res, running: false, place: b.siege ? 'Siege of ' + b.city.name : 'Battle on the ' + TINFO[b.biome].n };
     aiPickAbilities(b, 1 - b.player);
     const bg = sceneBg(b.biome, b.siege);
     $('#tacwrap').style.backgroundImage = `linear-gradient(#0007,#000b),url(${bg.toDataURL()})`;
-    $('#battle').style.display = 'flex';
+    $('#battle').style.display = 'flex'; $('#fade').classList.add('on'); setTimeout(fadeIn, 40);
     renderPre();
   });
 }
@@ -1594,7 +1664,7 @@ async function playBattle(scenes) {
 }
 function endManual() {
   const b = TB.b;
-  const won = b.winner === b.player, res = battleResults(b);
+  const won = b.winner === b.player, res = battleResults(b); sfx(won ? 'victory' : 'defeat');
   const rows = res.gens.filter(x => x.side === b.player).map(x => `<tr><td>${x.g.name}</td><td>${x.fell ? '<span style="color:var(--red)">Fallen</span>' : x.squads.length + ' squads · ' + x.squads.reduce((a, s) => a + s.hp, 0) + ' men'}</td><td>+${x.xp} XP</td></tr>`).join('');
   $('#mbox').innerHTML = `<h3 style="font-size:26px;color:${won ? 'var(--green)' : 'var(--red)'}">${won ? 'VICTORY' : 'DEFEAT'}</h3>
    <p class="sub">${b.timeout ? (b.player === 0 ? 'The defenders held — your attack stalls.' : 'You held — the attackers withdraw.') : won ? 'The enemy commanders are broken.' : 'Your commanders have fallen.'}</p>
@@ -1795,7 +1865,7 @@ function stepDuel(S, t, dt) {
   }
   const u = t - c.t0, tImp = att.ranged ? 0.56 : 0.26, guard = c.res === 'block' || c.res === 'parry';
   att.state = 'atk'; att.ak = clamp(u / (att.ranged ? 0.5 : 0.48), 0, 1); att.heavy = c.res === 'kill' || !!c.combo; att.face = dir;
-  if (att.ranged && !c.shot && u >= 0.28) { c.shot = true; S.proj.push({ from: att, to: def, t0: t, t1: t + 0.28, kind: projKind(att.type), miss: c.res === 'dodge' }); }
+  if (att.ranged && !c.shot && u >= 0.28) { c.shot = true; sfx(att.type === 'mage' ? 'cast' : 'bow'); S.proj.push({ from: att, to: def, t0: t, t1: t + 0.28, kind: projKind(att.type), miss: c.res === 'dodge' }); }
   if (guard && u > 0.06 && def.blkT == null) def.blkT = t;
   if (c.res === 'dodge' && u >= tImp - 0.08 && !c.rolled) { c.rolled = true; def.rollT = t; knock(def, dir, 120, 45); }
   if (!c.hit && u >= tImp) {
@@ -1809,20 +1879,20 @@ function stepDuel(S, t, dt) {
       if (c.res === 'kill') {
         def.dead = true; def.deadT = t; knock(def, dir, 240, 175);
         burst(S, mx, my, 28, HITC, 140, 40); S.rings.push({ x: mx, y: my, t: 0, c: '#fff8d0', r: 26 });
-        impact(S, 0.14, 7, 0.7); S.flashA = 0.55; S.gShow[sd] = 0;
+        impact(S, 0.14, 7, 0.7); S.flashA = 0.55; S.gShow[sd] = 0; sfx('ko');
         popup(S, SW / 2, SH * 0.42, 'DEFEATED!', 'ko');
         for (const gf of (S.genFall || [])) if (gf.sd === sd) gf.t = t + 0.25;
       } else {
         def.hurtT = t; knock(def, dir, 135, c.combo ? 60 : 25);
         burst(S, mx, my, 14, HITC, 100, 30); S.rings.push({ x: mx, y: my, t: 0, c: '#ffe080', r: 12 });
-        impact(S, 0.07, 3);
+        impact(S, 0.07, 3); sfx('heavy');
       }
     } else if (guard) {
       burst(S, mx, my, 10, CLANGC, 90, 20); S.rings.push({ x: mx, y: my, t: 0, c: c.res === 'parry' ? '#ffd24a' : '#cfe8ff', r: c.res === 'parry' ? 16 : 10 });
-      knock(def, dir, 75); impact(S, 0.05, 1.8);
+      knock(def, dir, 75); impact(S, 0.05, 1.8); sfx('clang');
       if (c.res === 'parry') { att.hurtT = t; knock(att, -dir, 55); popup(S, def.x, def.y - 34, 'PARRY!', 'par'); }
       else { knock(att, -dir, 60); popup(S, def.x, def.y - 34, 'BLOCK', 'blk'); }
-    } else { popup(S, def.x, def.y - 34, 'DODGE!', 'blk'); S.dust.push({ x: def.x, y: def.y, t: 0 }, { x: def.x - dir * 4, y: def.y, t: 0 }); }
+    } else { sfx('whoosh'); popup(S, def.x, def.y - 34, 'DODGE!', 'blk'); S.dust.push({ x: def.x, y: def.y, t: 0 }, { x: def.x - dir * 4, y: def.y, t: 0 }); }
   }
   if (c.hit && u >= tImp + 0.22) {
     D.cur = null; def.blkT = null;
@@ -1834,11 +1904,11 @@ function stepDuel(S, t, dt) {
 // a melee soldier's swing lands: usually a hit that shoves the target back, sometimes a clash of steel
 function strike(S, so, tg, t) {
   const dir = Math.sign(tg.x - so.x) || (so.side ? -1 : 1), cav = so.type === 'cavalry' && !so.hit1; so.hit1 = true;
-  if (tg.gen) { burst(S, (so.x + tg.x) / 2, so.y - 11, 5, CLANGC, 60, 15); S.rings.push({ x: (so.x + tg.x) / 2, y: so.y - 11, t: 0, c: '#cfe8ff', r: 7 }); knock(so, -dir, cav ? 90 : 50); return; } // a General's HP only moves in the duel
+  if (tg.gen) { sfx('clang'); burst(S, (so.x + tg.x) / 2, so.y - 11, 5, CLANGC, 60, 15); S.rings.push({ x: (so.x + tg.x) / 2, y: so.y - 11, t: 0, c: '#cfe8ff', r: 7 }); knock(so, -dir, cav ? 90 : 50); return; } // a General's HP only moves in the duel
   if (cav || R() < 0.55) {
-    tg.hurtT = t; tg.flashT = t; knock(tg, dir, cav ? 150 : 60, cav ? 75 : 0);
+    tg.hurtT = t; tg.flashT = t; knock(tg, dir, cav ? 150 : 60, cav ? 75 : 0); sfx(cav ? 'heavy' : 'hit');
     burst(S, tg.x - dir * 3, tg.y - 10, cav ? 10 : 5, HITC, cav ? 90 : 60, 20); if (cav) impact(S, 0.03, 2);
-  } else { burst(S, (so.x + tg.x) / 2, so.y - 10, 4, CLANGC, 50, 15); knock(tg, dir, 30); knock(so, -dir, 30); }
+  } else { burst(S, (so.x + tg.x) / 2, so.y - 10, 4, CLANGC, 50, 15); knock(tg, dir, 30); knock(so, -dir, 30); sfx('clang'); }
 }
 // who a soldier goes after: their own target squad while it stands, then the nearest remaining row of the enemy
 // formation; the enemy General counts as part of the middle row (soldiers prefer troops at the same distance)
@@ -1857,17 +1927,17 @@ function stepScene(S, t, dt) {
     d.done = true; const so = d.so; so.dead = true; so.deadT = t; so.flashT = t; S.done[d.sd]++;
     const dir = so.side ? 1 : -1, boom = S.sk === 'meteor' || S.sk === 'lightning';
     knock(so, dir, 70 + R() * 80 + (boom ? 60 : 0), (boom ? 120 : 45) + R() * 70);
-    burst(S, so.x, so.y - 9, boom ? 10 : 7, S.sk === 'lightning' ? CLANGC : boom ? FIREC : HITC, 75, 30);
+    burst(S, so.x, so.y - 9, boom ? 10 : 7, S.sk === 'lightning' ? CLANGC : boom ? FIREC : HITC, 75, 30); sfx(boom ? 'hit' : 'death');
   }
   for (const gf of (S.genFall || [])) if (!gf.done && t >= gf.t) { gf.done = true; for (const so of S.soldiers) if (so.side === gf.sd && !so.dead && !so.gen) so.flee = t + R() * 0.3; }
-  for (const m of S.booms) if (!m.done && t >= m.t) { m.done = true; impact(S, m.big ? 0.03 : 0, m.big ? 3.5 : 1.5); burst(S, m.x, m.y - 3, m.big ? 12 : 6, m.bolt ? CLANGC : FIREC, 110, 50); if (m.bolt && m.big) S.flashA = Math.max(S.flashA, 0.3); }
+  for (const m of S.booms) if (!m.done && t >= m.t) { m.done = true; sfx(m.bolt ? 'zap' : 'boom', m.big ? 1 : 0.6); impact(S, m.big ? 0.03 : 0, m.big ? 3.5 : 1.5); burst(S, m.x, m.y - 3, m.big ? 12 : 6, m.bolt ? CLANGC : FIREC, 110, 50); if (m.bolt && m.big) S.flashA = Math.max(S.flashA, 0.3); }
   for (const h of (S.heals || [])) if (!h.done && t >= h.t) {
     h.done = true; const tg = (S.byU.get(h.u.uid) || []).filter(s => !s.dead && !(s.flee && t > s.flee));
-    const so = pick(tg); if (so) popup(S, so.x, so.y - 28, '+' + h.n, 'heal');
+    const so = pick(tg); if (so) { popup(S, so.x, so.y - 28, '+' + h.n, 'heal'); sfx('heal'); }
   }
   // a volley that lands without killing: soldiers flinch back, a General knocks it aside
   for (const p of S.proj) if (p.fx && !p.done && t >= p.t1) {
-    p.done = true; const tg = p.to; if (tg.dead) continue; const dir = Math.sign(tg.x - p.from.x) || 1;
+    p.done = true; const tg = p.to; if (tg.dead) continue; const dir = Math.sign(tg.x - p.from.x) || 1; sfx(tg.gen ? 'clang' : 'hit', 0.6);
     if (tg.gen) burst(S, tg.x - dir * 4, tg.y - 12, 4, CLANGC, 50, 15);
     else { tg.hurtT = t; tg.flashT = t; knock(tg, dir, 35); burst(S, tg.x - dir * 2, tg.y - 8, 3, HITC, 40, 10); }
   }
@@ -1907,7 +1977,7 @@ function stepScene(S, t, dt) {
     } else {
       if (S.mode === 'clash' && so.ranged && !so.gen && so.nextShot != null && t >= so.nextShot && t < back - 0.6) {
         const tg = nextFoe(S, so, t);
-        if (tg) { const hit = tg.gen || R() < 0.5, fl = 0.45 + Math.abs(tg.x - so.x) / 600 + R() * 0.1; S.proj.push({ from: so, to: tg, t0: t + 0.5, t1: t + 0.5 + fl, kind: projKind(so.type), miss: !hit, fx: hit }); so.aimDir = Math.sign(tg.x - so.x) || so.aimDir; so.face = so.aimDir || so.face; }
+        if (tg) { sfx(so.type === 'priest' ? 'cast' : 'bow'); const hit = tg.gen || R() < 0.5, fl = 0.45 + Math.abs(tg.x - so.x) / 600 + R() * 0.1; S.proj.push({ from: so, to: tg, t0: t + 0.5, t1: t + 0.5 + fl, kind: projKind(so.type), miss: !hit, fx: hit }); so.aimDir = Math.sign(tg.x - so.x) || so.aimDir; so.face = so.aimDir || so.face; }
         so.nextShot = t + 1.3 + R() * 0.5;
       }
       const shot = S.proj.find(p => p.from === so && t > p.t0 - 0.55 && t < p.t0 + 0.25);
@@ -2037,6 +2107,7 @@ function drawScene(cx, S, t, dt) {
   if (bn._k !== bk) { bn._k = bk; bn.innerHTML = show.map(x => `<div class="sb ${x.side ? 'r' : 'l'}">${x.text}</div>`).join(''); }
 }
 function playScene(S) {
+  if (S.mode === 'skill') sfx('cast'); if (S.banners.length) sfx('skill');
   return new Promise(res => {
     const cv = $('#scenecv'); cv.width = SW; cv.height = SH; const cx = cv.getContext('2d');
     const el = $('#scene'); el.style.display = 'flex'; $('#sbL')._k = $('#sbR')._k = $('#sban')._k = null; $('#spops').innerHTML = '';
@@ -2128,7 +2199,7 @@ function crisisTick() {
     c.owner = NEUTRAL; c.garrison = 1; logMsg(`${c.name} rose up against ${F.name}.`);
   }
   if (k === 'revolt') computeTerritory();
-  logMsg(`Crisis: ${X.n}! ${X.d}`); toast(`<i class="ico ico-${X.ico}"></i> <b>${X.n}!</b> ${X.d}`, 7000);
+  sfx('gong'); logMsg(`Crisis: ${X.n}! ${X.d}`); toast(`<i class="ico ico-${X.ico}"></i> <b>${X.n}!</b> ${X.d}`, 7000);
 }
 function incomeReport(f) {
   const per = new Map(); for (const c of G.cities) if (c.owner === f) per.set(c.id, 4 + c.level * 4);
@@ -2205,6 +2276,7 @@ async function walkArmy(g, path, fast) {
     const c = TINFO[G.tiles[j]].cost; if (g.mp <= 0) break;
     const sx = g.x, sy = g.y; g.mp = Math.max(0, g.mp - c);
     const steps = fast ? 3 : 6;
+    if (g.faction === 0 || !fast) sfx('step');
     for (let s = 1; s <= steps; s++) { g.ax = lerp(sx, nx, s / steps); g.ay = lerp(sy, ny, s / steps); await sleep(16); }
     g.x = nx; g.y = ny; g.ax = nx; g.ay = ny;
   }
@@ -2258,7 +2330,7 @@ function applyBattle(res, S, attG, tgt) {
     if (fCities(attF).length && !capitalOf(attF).capital) capitalOf(attF).capital = true;
     computeTerritory();
     const msg = `${G.factions[attF].name} captured ${c.name}${old === NEUTRAL ? '' : ' from ' + G.factions[old].name}`;
-    logMsg(msg); if (attF === 0 || old === 0) toast((attF === 0 ? '<i class="ico ico-castle"></i> ' : '<i class="ico ico-alert"></i> ') + msg, 3500);
+    logMsg(msg); if (attF === 0) sfx('capture'); if (attF === 0 || old === 0) toast((attF === 0 ? '<i class="ico ico-castle"></i> ' : '<i class="ico ico-alert"></i> ') + msg, 3500);
   } else {
     const w = attWon ? G.factions[attF].name : G.factions[S.defF].name;
     logMsg(`${G.factions[attF].name} attacked ${defName}: ${w} won${res.timeout ? ' (held)' : ''}`);
@@ -2406,7 +2478,7 @@ function askDefend(g, t) {
 
 // ============ TURN FLOW ============
 async function endTurn() {
-  if (UI.busy) return; UI.busy = true; deselect(); $('#bEnd').disabled = true;
+  if (UI.busy) return; sfx('drum'); UI.busy = true; deselect(); $('#bEnd').disabled = true;
   for (let f = 1; f < 4; f++) { await aiTurn(f); if (checkEndGame()) { UI.busy = false; return; } }
   // economy
   const terrCount = new Array(5).fill(0); for (let i = 0; i < G.N; i++) { const o = tileOwner(i); if (o >= 0) terrCount[o]++; }
@@ -2434,6 +2506,7 @@ function checkEndGame() {
   return false;
 }
 function showEnd(win) {
+  sfx(win ? 'victory' : 'defeat');
   $('#mbox').innerHTML = `<h3 style="font-size:30px;color:${win ? 'var(--green)' : 'var(--red)'}">${win ? 'THE REALM IS UNITED' : 'YOUR KINGDOM HAS FALLEN'}</h3><p>${win ? `All rival thrones have fallen to the ${G.factions[0].name} in ${G.turn} turns.` : 'The last of your cities has been taken.'}</p><div class="row"><button class="btn gold" id="endNew">New Game</button></div>`;
   $('#modal').style.display = 'flex'; try { localStorage.removeItem(SAVE_KEY); } catch (e) { }
   $('#endNew').onclick = () => location.reload();
@@ -2644,9 +2717,9 @@ function armyPanel(g) {
   }
   const c = cityAt(g.x, g.y); if (c) h += `<div class="row"><button class="btn sm" id="pCity">View ${c.name}</button></div>`;
   P.innerHTML = h; $('#pport').appendChild(portraitImg(g, 64));
-  P.querySelectorAll('[data-learn]').forEach(b => b.onclick = () => { if (learnSkill(g, b.dataset.learn)) { toast(`${g.name} learned <b>${ABIL[b.dataset.learn].n}</b>.`); saveGame(); renderHUD(); armyPanel(g); } });
-  const rb = $('#pRefill'); if (rb) rb.onclick = () => { const rc = refillCost(g); if (F.gold >= rc) { F.gold -= rc; g.squads.forEach(s => s.hp = sqMax(g)); toast('Squads replenished.'); afterWorldChange(); } };
-  P.querySelectorAll('[data-train]').forEach(b => b.onclick = () => { const t = b.dataset.train, cst = trainCost(0, t); if (F.gold < cst || g.squads.length >= maxSquads(g)) return; F.gold -= cst; g.squads.push({ type: t, hp: sqMax(g) }); afterWorldChange(); });
+  P.querySelectorAll('[data-learn]').forEach(b => b.onclick = () => { if (learnSkill(g, b.dataset.learn)) { sfx('learn'); toast(`${g.name} learned <b>${ABIL[b.dataset.learn].n}</b>.`); saveGame(); renderHUD(); armyPanel(g); } });
+  const rb = $('#pRefill'); if (rb) rb.onclick = () => { const rc = refillCost(g); if (F.gold >= rc) { F.gold -= rc; g.squads.forEach(s => s.hp = sqMax(g)); sfx('coin'); toast('Squads replenished.'); afterWorldChange(); } };
+  P.querySelectorAll('[data-train]').forEach(b => b.onclick = () => { const t = b.dataset.train, cst = trainCost(0, t); if (F.gold < cst || g.squads.length >= maxSquads(g)) return; F.gold -= cst; sfx('coin'); g.squads.push({ type: t, hp: sqMax(g) }); afterWorldChange(); });
   P.querySelectorAll('[data-dis]').forEach(b => b.onclick = () => { g.squads.splice(+b.dataset.dis, 1); afterWorldChange(); });
   const pc = $('#pCity'); if (pc) pc.onclick = () => { UI.sel = null; UI.selCity = c; UI.reach = null; UI.targets = []; renderPanel(); };
 }
@@ -2683,10 +2756,11 @@ function kingdomModal() {
   <h4>Realm standings</h4><table><tr><th>Kingdom</th><th>Lv</th><th>Cities</th><th>Generals</th><th>Status</th></tr>${G.factions.slice(0, 4).filter(f => !f.out).map(f => `<tr><td><span class="sw" style="background:${f.col}"></span>${f.name}</td><td>${f.klv}</td><td>${fCities(f.id).length}</td><td>${fGens(f.id).length}</td><td>${f.alive ? '' : '<i class="ico ico-skull"></i> Fallen'}</td></tr>`).join('')}
   <tr><td><span class="sw" style="background:${G.factions[4].col}"></span>Free Towns</td><td>—</td><td>${fCities(4).length}</td><td>—</td><td></td></tr></table>
   <h4>Chronicle</h4><div class="sub" style="max-height:120px;overflow:auto">${G.log.slice().reverse().map(s => `<div>${s}</div>`).join('') || 'Nothing yet.'}</div>
-  <h4>Game</h4><div class="row"><button class="btn sm" id="kSave"><i class="ico ico-book"></i> Save</button><button class="btn sm" id="kScn"><i class="ico ico-gear"></i> Battle scenes: ${SET.scenes ? 'On' : 'Off'}</button><button class="btn sm" id="kMenu"><i class="ico ico-left"></i> Save & main menu</button><button class="btn sm red" id="kQuit">Abandon & new game</button></div>`;
+  <h4>Game</h4><div class="row"><button class="btn sm" id="kSave"><i class="ico ico-book"></i> Save</button><button class="btn sm" id="kScn"><i class="ico ico-gear"></i> Battle scenes: ${SET.scenes ? 'On' : 'Off'}</button><button class="btn sm" id="kVol"><i class="ico ico-gear"></i> Sound: ${['Off', 'Low', 'High'][SET.vol]}</button><button class="btn sm" id="kMenu"><i class="ico ico-left"></i> Save & main menu</button><button class="btn sm red" id="kQuit">Abandon & new game</button></div>`;
   openModal(h);
   $('#kSave').onclick = () => { saveGame(); toast('Game saved.'); };
   $('#kScn').onclick = () => { SET.scenes = !SET.scenes; saveSet(); kingdomModal(); };
+  $('#kVol').onclick = () => { SET.vol = (SET.vol + 2) % 3; saveSet(); kingdomModal(); sfx('coin'); };
   $('#kMenu').onclick = () => { saveGame(); location.reload(); };
   $('#kQuit').onclick = () => { $('#kQuit').textContent = 'Click again to confirm'; $('#kQuit').onclick = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) { } location.reload(); }; };
 }
@@ -2758,6 +2832,7 @@ const ngOpts = () => ({ cls: CLASSES[NG.cls] ? NG.cls : 'Fighter', size: NG.size
 const TERR_COL = ['#1c3e6e', '#2f67a8', '#e2cf8e', '#6fb14a', '#9cc35a', '#3f7d36', '#8a7a52', '#7c7670', '#e8eef4', '#dcc076', '#5e7a4a'];
 function titleScreen(which) {
   for (const [id, k] of [['#tMenu', 'menu'], ['#tSetup', 'setup'], ['#tPanel', 'panel']]) $(id).style.display = which === k ? '' : 'none';
+  const tb = $('#title .tb'); tb.style.animation = 'none'; void tb.offsetWidth; tb.style.animation = '';
   $('#title .tag').style.display = which === 'setup' ? 'none' : ''; $('#title').classList.toggle('setup', which === 'setup');
 }
 function syncSetup() {
@@ -2783,7 +2858,9 @@ for (const seg of document.querySelectorAll('#tSetup .seg')) seg.onclick = e => 
 $('#tNew').onclick = openSetup;
 $('#tBack').onclick = () => titleScreen('menu');
 $('#tReroll').onclick = () => { NG.seed = Math.floor(Math.random() * 1e6); drawPreview(); };
-function busyThen(fn) { $('#tLoad').style.display = 'flex'; requestAnimationFrame(() => setTimeout(() => { try { fn(); } finally { $('#tLoad').style.display = 'none'; } }, 30)); }
+const fadeOut = () => new Promise(r => { $('#fade').classList.add('on'); setTimeout(r, 280); });
+const fadeIn = () => $('#fade').classList.remove('on');
+function busyThen(fn) { $('#tLoad').style.display = 'flex'; requestAnimationFrame(() => setTimeout(() => { try { fn(); } finally { $('#tLoad').style.display = 'none'; $('#fade').classList.add('on'); requestAnimationFrame(() => setTimeout(fadeIn, 60)); } }, 30)); }
 $('#tStart').onclick = () => busyThen(() => {
   const o = ngOpts(); drawPreview(); RNG = Math.random;
   newGame(previewWorld, ($('#kname').value || 'Kingdom of Aster').slice(0, 24), o); previewWorld = null; previewKey = '';
@@ -2795,9 +2872,11 @@ $('#tCont').onclick = () => busyThen(() => { RNG = Math.random; if (loadGame()) 
 function optionsPanel() {
   $('#tPanel').innerHTML = `<h3><i class="ico ico-gear"></i> Options</h3>
    <div class="trow"><span>Battle scenes</span><div class="seg" id="oScn"><button class="btn sm ${SET.scenes ? 'on' : ''}" data-v="1">On</button><button class="btn sm ${SET.scenes ? '' : 'on'}" data-v="0">Off</button></div></div>
+   <div class="trow" style="margin-top:7px"><span>Sound</span><div class="seg" id="oVol">${['Off', 'Low', 'High'].map((n, v) => `<button class="btn sm ${SET.vol === v ? 'on' : ''}" data-v="${v}">${n}</button>`).join('')}</div></div>
    <div class="trow" style="margin-top:7px"><span>Battle speed</span><div class="seg" id="oSpd">${[1, 2, 3].map(v => `<button class="btn sm ${SET.speed === v ? 'on' : ''}" data-v="${v}">${v}×</button>`).join('')}</div></div>
    <div class="row tbtns"><button class="btn" id="pBack"><i class="ico ico-left"></i> Back</button></div>`;
   $('#oScn').onclick = e => { const b = e.target.closest('.btn'); if (!b) return; SET.scenes = b.dataset.v === '1'; saveSet(); optionsPanel(); };
+  $('#oVol').onclick = e => { const b = e.target.closest('.btn'); if (!b) return; SET.vol = +b.dataset.v; saveSet(); audio(); optionsPanel(); sfx('coin'); };
   $('#oSpd').onclick = e => { const b = e.target.closest('.btn'); if (!b) return; SET.speed = +b.dataset.v; saveSet(); optionsPanel(); };
   $('#pBack').onclick = () => titleScreen('menu'); titleScreen('panel');
 }
