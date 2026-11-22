@@ -349,7 +349,7 @@ td,th{border-color:var(--edge2)}
   <div class="tsw">
    <div class="tform">
     <label class="trow"><span>Kingdom</span><input type="text" id="kname" value="Kingdom of Aster" maxlength="24"></label>
-    <div class="trow"><span>Your General</span><div class="seg" data-opt="cls"><button class="btn sm" data-v="Fighter">Fighter<span class="wp"> (Sword)</span></button><button class="btn sm" data-v="Lancer">Lancer<span class="wp"> (Spear)</span></button><button class="btn sm" data-v="Berserker">Berserker<span class="wp"> (Axe)</span></button><button class="btn sm" data-v="Rogue">Rogue<span class="wp"> (Dagger)</span></button><button class="btn sm" data-v="Mage">Mage<span class="wp"> (Wand)</span></button></div></div>
+    <div class="trow"><span>Your General</span><div class="seg" data-opt="cls"><button class="btn sm" data-v="Fighter">Fighter<span class="wp"> (Sword)</span></button><button class="btn sm" data-v="Knight">Knight<span class="wp"> (Plate)</span></button><button class="btn sm" data-v="Lancer">Lancer<span class="wp"> (Spear)</span></button><button class="btn sm" data-v="Berserker">Berserker<span class="wp"> (Axe)</span></button><button class="btn sm" data-v="Rogue">Rogue<span class="wp"> (Dagger)</span></button><button class="btn sm" data-v="Mage">Mage<span class="wp"> (Wand)</span></button></div></div>
     <div class="trow"><span>Map size</span><div class="seg" data-opt="size"><button class="btn sm" data-v="s">Small</button><button class="btn sm" data-v="m">Medium</button><button class="btn sm" data-v="l">Large</button></div></div>
     <div class="trow"><span>Land</span><div class="seg" data-opt="shape"><button class="btn sm" data-v="continent">Continent</button><button class="btn sm" data-v="pangaea">Pangaea</button><button class="btn sm" data-v="twin">Twin Continents</button><button class="btn sm" data-v="inland">Inland Sea</button><button class="btn sm" data-v="archi">Archipelago</button></div></div>
     <div class="trow"><span>Rivals</span><div class="seg" data-opt="enemies"><button class="btn sm" data-v="1">1</button><button class="btn sm" data-v="2">2</button><button class="btn sm" data-v="3">3</button></div></div>
@@ -413,11 +413,12 @@ const TROOPS = {
 // matchups: infantry > spearmen > cavalry > infantry; archers > priests > monsters (monsters arrive later)
 const BEATS = { infantry: ['spear'], spear: ['cavalry', 'armored'], cavalry: ['infantry'], archer: ['priest'], priest: ['monster'], monster: [], mage: ['armored'], armored: ['infantry', 'blade'], blade: ['spear', 'archer'] };
 // General classes follow the weapon in their battle sprite: sword, spear, axe, dagger, wand
-const CLASS_WPN = { Fighter: 'Sword', Lancer: 'Spear', Berserker: 'Axe', Rogue: 'Dagger', Mage: 'Wand' };
-const LEGACY_CLS = { Knight: 'Berserker', Ranger: 'Rogue' }; // classes from older saves
+const CLASS_WPN = { Fighter: 'Sword', Knight: 'Sword · heavy armor', Lancer: 'Spear', Berserker: 'Axe', Rogue: 'Dagger', Mage: 'Wand' };
+const LEGACY_CLS = { Ranger: 'Rogue' }; // classes from older saves
 const CLASSES = {
   Fighter: { type: 'infantry', atk: 23, def: 19, mov: 5, wmov: 4, fav: 'infantry', rng: 1, g: [2, 2, 2, 1] },
   Lancer: { type: 'spear', atk: 21, def: 22, mov: 5, wmov: 4, fav: 'spear', rng: 1, g: [1, 2, 2, 1] },
+  Knight: { type: 'infantry', atk: 22, def: 25, mov: 4, wmov: 4, fav: 'spear', rng: 1, g: [1, 3, 2, 1] },
   Berserker: { type: 'armored', atk: 26, def: 16, mov: 5, wmov: 4, fav: 'armored', rng: 1, g: [3, 1, 1, 1] },
   Rogue: { type: 'blade', atk: 22, def: 14, mov: 6, wmov: 5, fav: 'blade', rng: 1, g: [2, 1, 1, 2] },
   Mage: { type: 'mage', atk: 22, def: 13, mov: 4, wmov: 4, fav: 'priest', rng: 2, g: [2, 1, 1, 2] },
@@ -1100,8 +1101,9 @@ function portrait(g) {
 // The battle and overworld sheets only cover foot soldiers and mages, so mounted and ranged generals keep the
 // built-in sprites there. Every general gets a layered portrait. If Gen/ is missing everything falls back to the old art.
 const GEN_P = 'Gen/Portrait/heroes99_portrait/', GEN_O = 'Gen/Overworld/heroes99_overworld/', GEN_B = 'Gen/Battle/';
-const GEN_CLOTH = { Fighter: [1, 2, 3, 4, 6, 11, 12, 13, 14, 15, 16, 17], Lancer: [2, 4, 11, 12, 13, 14, 15], Berserker: [2, 4, 12, 13, 14, 15], Rogue: [1, 3, 6, 11, 16, 17], Mage: [5, 7, 8, 9, 10] };
-const GEN_WEAPON = { Fighter: [1], Berserker: [2], Rogue: [3], Lancer: [4], Mage: [5] }; // 1 sword, 2 axe, 3 dagger, 4 spear, 5 wand (4 gem colours)
+// plate armor (12-15) is reserved for Knights so they are recognisable at a glance
+const GEN_CLOTH = { Fighter: [1, 2, 3, 4, 6, 11, 16, 17], Knight: [12, 13, 14, 15], Lancer: [2, 4, 11, 16], Berserker: [1, 2, 3, 4, 6, 11], Rogue: [1, 3, 6, 11, 16, 17], Mage: [5, 7, 8, 9, 10] };
+const GEN_WEAPON = { Fighter: [1], Knight: [1], Berserker: [2], Rogue: [3], Lancer: [4], Mage: [5] }; // 1 sword, 2 axe, 3 dagger, 4 spear, 5 wand (4 gem colours)
 const GEN_CLOTH_RGB = [[190, 45, 45], [50, 90, 190], [45, 140, 70], [120, 70, 180], [80, 78, 84], [215, 165, 40], null, [170, 200, 230]]; // cloth colours c1..c8 (c7 is mixed)
 const GEN_HAIR_NAT = [1, 3, 7, 8, 9, 10]; // red, blond, dark brown, brown, black, white; the rest are green/blue/purple/pink
 const genModular = g => !!GEN_WEAPON[g.cls];
@@ -1241,6 +1243,14 @@ const ABIL = {
   edge: { n: 'Keen Edge', cls: 'Fighter', t: 2, req: 'drill', i: '<i class="ico ico-clash"></i>', d: 'Passive: army +10% ATK', p: { a: 1.1 } },
   laststand: { n: 'Last Stand', cls: 'Fighter', t: 3, req: 'secondwind', i: '<i class="ico ico-shield"></i>', d: 'Army +30% DEF, heal every squad +2', fx: { d: 1.3, heal: 2 } },
   warlord: { n: 'Warlord', cls: 'Fighter', t: 3, req: 'edge', i: '<i class="ico ico-crown"></i>', d: 'Passive: command aura +1', p: { cmd: 1 } },
+
+  stalwart: { n: 'Stalwart', cls: 'Knight', t: 0, i: '<i class="ico ico-shield"></i>', d: 'Army +20% DEF, +10% ATK', fx: { d: 1.2, a: 1.1 } },
+  oath: { n: 'Holy Oath', cls: 'Knight', t: 1, req: 'stalwart', i: '<i class="ico ico-heart"></i>', d: 'Heal every squad +2, army +15% ATK', fx: { heal: 2, a: 1.15 } },
+  heavyplate: { n: 'Heavy Plate', cls: 'Knight', t: 1, req: 'stalwart', i: '<i class="ico ico-helmet"></i>', d: 'Passive: General +4 HP in battle', p: { ghp: 4 } },
+  kcharge: { n: "Knight's Charge", cls: 'Knight', t: 2, req: 'oath', i: '<i class="ico ico-swords"></i>', d: 'Army +35% ATK', fx: { a: 1.35 } },
+  templar: { n: 'Templar Order', cls: 'Knight', t: 2, req: 'heavyplate', i: '<i class="ico ico-spear"></i>', d: 'Passive: Spearmen +3 ATK/DEF, +2 soldiers per squad', p: { fav: 3, size: 2 } },
+  crusade: { n: 'Crusade', cls: 'Knight', t: 3, req: 'kcharge', i: '<i class="ico ico-banner"></i>', d: 'Army +25% ATK & DEF', fx: { a: 1.25, d: 1.25 } },
+  paladin: { n: 'Paladin', cls: 'Knight', t: 3, req: 'templar', i: '<i class="ico ico-crown"></i>', d: 'Passive: army +10% DEF, command aura +1', p: { d: 1.1, cmd: 1 } },
 
   phalanx: { n: 'Phalanx', cls: 'Lancer', t: 0, i: '<i class="ico ico-shield"></i>', d: 'Army +25% DEF', fx: { d: 1.25 } },
   menace: { n: 'Intimidate', cls: 'Lancer', t: 1, req: 'phalanx', i: '<i class="ico ico-skull"></i>', d: 'All enemies -15% ATK', fx: { ea: 0.85 } },
@@ -2796,7 +2806,7 @@ function helpPanel() {
    <p><b>Goal:</b> conquer every rival kingdom. You lose if your last city falls.</p>
    <p><b>Armies:</b> select a General, move them across the map and attack red-highlighted enemies or towns. Each General commands a few squads.</p>
    <p><b>Battles:</b> pick a General ability, then watch the clash. If a General falls, their troops flee.</p>
-   <p><b>Generals:</b> five classes, set by their weapon: Fighter (sword), Lancer (spear), Berserker (axe), Rogue (dagger) and Mage (wand). Every 2 levels a General earns a skill point to spend in their class skill tree (open the General's panel).</p>
+   <p><b>Generals:</b> six classes, set by their weapon and gear: Fighter (sword), Knight (sword and heavy plate), Lancer (spear), Berserker (axe), Rogue (dagger) and Mage (wand). Every 2 levels a General earns a skill point to spend in their class skill tree (open the General's panel).</p>
    <p><b>Matchups:</b> Infantry beat Spearmen, Spearmen beat Cavalry, Cavalry beat Infantry. Archers beat Priests.</p>
    <p><b>Growth:</b> cities and territory earn gold for squads and upgrades. Kingdom levels grant Tech Points and raise your General cap; hire Generals at the Tavern.</p>
    <div class="row tbtns"><button class="btn" id="pBack"><i class="ico ico-left"></i> Back</button></div>`;
